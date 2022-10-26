@@ -12,6 +12,12 @@ use tokio::net::UnixDatagram;
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
+
+    #[arg(short, long, default_value = "/opt/softnpu/stuff/client")]
+    client: String,
+
+    #[arg(short, long, default_value = "/opt/softnpu/stuff/server")]
+    server: String,
 }
 
 #[derive(Debug, Subcommand)]
@@ -195,7 +201,7 @@ impl std::str::FromStr for MacAddr {
 async fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
+    match &cli.command {
         Commands::AddRoute4 {
             destination,
             mask,
@@ -203,29 +209,35 @@ async fn main() {
             nexthop,
         } => {
             let mut keyset_data: Vec<u8> = destination.octets().into();
-            keyset_data.push(mask);
+            keyset_data.push(*mask);
 
-            let mut parameter_data = vec![port];
+            let mut parameter_data = vec![*port];
             let nexthop_data: Vec<u8> = nexthop.octets().into();
             parameter_data.extend_from_slice(&nexthop_data);
 
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 3,
-                action: 1,
-                keyset_data,
-                parameter_data,
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 3,
+                    action: 1,
+                    keyset_data,
+                    parameter_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::RemoveRoute4 { destination, mask } => {
             let mut keyset_data: Vec<u8> = destination.octets().into();
-            keyset_data.push(mask);
+            keyset_data.push(*mask);
 
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 3,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 3,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
@@ -236,29 +248,35 @@ async fn main() {
             nexthop,
         } => {
             let mut keyset_data: Vec<u8> = destination.octets().into();
-            keyset_data.push(mask);
+            keyset_data.push(*mask);
 
-            let mut parameter_data = vec![port];
+            let mut parameter_data = vec![*port];
             let nexthop_data: Vec<u8> = nexthop.octets().into();
             parameter_data.extend_from_slice(&nexthop_data);
 
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 2,
-                action: 1,
-                keyset_data,
-                parameter_data,
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 2,
+                    action: 1,
+                    keyset_data,
+                    parameter_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::RemoveRoute6 { destination, mask } => {
             let mut keyset_data: Vec<u8> = destination.octets().into();
-            keyset_data.push(mask);
+            keyset_data.push(*mask);
 
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 2,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 2,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
@@ -270,7 +288,7 @@ async fn main() {
             vni,
             mac,
         } => {
-            if vni >= 1 << 24 {
+            if *vni >= 1 << 24 {
                 println!("vni too big, only 24 bits");
                 std::process::exit(1);
             }
@@ -284,12 +302,15 @@ async fn main() {
             parameter_data.extend_from_slice(&vni_bits[1..4]);
             parameter_data.extend_from_slice(&mac.0);
 
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 4,
-                action: 0,
-                keyset_data,
-                parameter_data,
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 4,
+                    action: 0,
+                    keyset_data,
+                    parameter_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
@@ -298,10 +319,13 @@ async fn main() {
             keyset_data.extend_from_slice(&begin.to_be_bytes());
             keyset_data.extend_from_slice(&end.to_be_bytes());
 
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 4,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 4,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
@@ -313,7 +337,7 @@ async fn main() {
             vni,
             mac,
         } => {
-            if vni >= 1 << 24 {
+            if *vni >= 1 << 24 {
                 println!("vni too big, only 24 bits");
                 std::process::exit(1);
             }
@@ -327,12 +351,15 @@ async fn main() {
             parameter_data.extend_from_slice(&vni_bits[1..4]);
             parameter_data.extend_from_slice(&mac.0);
 
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 5,
-                action: 0,
-                keyset_data,
-                parameter_data,
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 5,
+                    action: 0,
+                    keyset_data,
+                    parameter_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
@@ -341,129 +368,162 @@ async fn main() {
             keyset_data.extend_from_slice(&begin.to_be_bytes());
             keyset_data.extend_from_slice(&end.to_be_bytes());
 
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 5,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 5,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::AddAddress4 { address } => {
             let keyset_data: Vec<u8> = address.octets().into();
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 1,
-                action: 0,
-                keyset_data,
-                ..Default::default()
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 1,
+                    action: 0,
+                    keyset_data,
+                    ..Default::default()
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::RemoveAddress4 { address } => {
             let keyset_data: Vec<u8> = address.octets().into();
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 1,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 1,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::AddAddress6 { address } => {
             let keyset_data: Vec<u8> = address.octets().into();
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 0,
-                action: 0,
-                keyset_data,
-                ..Default::default()
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 0,
+                    action: 0,
+                    keyset_data,
+                    ..Default::default()
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::RemoveAddress6 { address } => {
             let keyset_data: Vec<u8> = address.octets().into();
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 0,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 0,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::SetMac { port, mac } => {
-            let keyset_data: Vec<u8> = vec![port];
+            let keyset_data: Vec<u8> = vec![*port];
             let parameter_data: Vec<u8> = mac.0.into();
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 10,
-                action: 0,
-                keyset_data,
-                parameter_data,
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 10,
+                    action: 0,
+                    keyset_data,
+                    parameter_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::ClearMac { port } => {
-            let keyset_data: Vec<u8> = vec![port];
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 10,
-                keyset_data,
-            }))
+            let keyset_data: Vec<u8> = vec![*port];
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 10,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::PortCount => {
-            let uds = bind();
+            let uds = bind(&cli);
             let j = tokio::spawn(async move {
                 if let ManagementResponse::RadixResponse(n) = recv(uds).await {
                     println!("{}", n)
                 }
             });
-            send(ManagementRequest::RadixRequest).await;
+            send(ManagementRequest::RadixRequest, &cli).await;
             j.await.unwrap();
         }
 
         Commands::AddNdpEntry { l3, l2 } => {
             let keyset_data: Vec<u8> = l3.octets().into();
             let parameter_data: Vec<u8> = l2.0.into();
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 9,
-                action: 0,
-                keyset_data,
-                parameter_data,
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 9,
+                    action: 0,
+                    keyset_data,
+                    parameter_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::RemoveNdpEntry { l3 } => {
             let keyset_data: Vec<u8> = l3.octets().into();
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 9,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 9,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::AddArpEntry { l3, l2 } => {
             let keyset_data: Vec<u8> = l3.octets().into();
             let parameter_data: Vec<u8> = l2.0.into();
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 8,
-                action: 0,
-                keyset_data,
-                parameter_data,
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 8,
+                    action: 0,
+                    keyset_data,
+                    parameter_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::RemoveArpEntry { l3 } => {
             let keyset_data: Vec<u8> = l3.octets().into();
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 8,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 8,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
         Commands::DumpState => {
-            let uds = bind();
+            let uds = bind(&cli);
             let j = tokio::spawn(async move {
                 if let ManagementResponse::DumpResponse(ref tables) =
                     recv(uds).await
@@ -471,22 +531,29 @@ async fn main() {
                     dump_tables(tables);
                 }
             });
-            send(ManagementRequest::DumpRequest).await;
+            send(ManagementRequest::DumpRequest, &cli).await;
             j.await.unwrap();
         }
 
-        Commands::AddProxyArp { begin, end, mac } => {
+        Commands::AddProxyArp {
+            begin,
+            end,
+            ref mac,
+        } => {
             let mut keyset_data: Vec<u8> = begin.octets().into();
             keyset_data.extend_from_slice(&end.octets());
 
             let parameter_data: Vec<u8> = mac.0.into();
 
-            send(ManagementRequest::TableAdd(TableAdd {
-                table: 11,
-                action: 0,
-                keyset_data,
-                parameter_data,
-            }))
+            send(
+                ManagementRequest::TableAdd(TableAdd {
+                    table: 11,
+                    action: 0,
+                    keyset_data,
+                    parameter_data,
+                }),
+                &cli,
+            )
             .await;
         }
 
@@ -494,28 +561,28 @@ async fn main() {
             let mut keyset_data: Vec<u8> = begin.octets().into();
             keyset_data.extend_from_slice(&end.octets());
 
-            send(ManagementRequest::TableRemove(TableRemove {
-                table: 11,
-                keyset_data,
-            }))
+            send(
+                ManagementRequest::TableRemove(TableRemove {
+                    table: 11,
+                    keyset_data,
+                }),
+                &cli,
+            )
             .await;
         }
     }
 }
 
-const SERVER: &str = "/opt/scrimlet/stuff/server";
-const CLIENT: &str = "/opt/scrimlet/stuff/client";
-
-async fn send(msg: ManagementRequest) {
+async fn send(msg: ManagementRequest, cli: &Cli) {
     let uds = UnixDatagram::unbound().unwrap();
 
     let buf = serde_json::to_vec(&msg).unwrap();
-    uds.send_to(&buf, SERVER).await.unwrap();
+    uds.send_to(&buf, &cli.server).await.unwrap();
 }
 
-fn bind() -> UnixDatagram {
-    let _ = std::fs::remove_file(CLIENT);
-    UnixDatagram::bind(CLIENT).unwrap()
+fn bind(cli: &Cli) -> UnixDatagram {
+    let _ = std::fs::remove_file(&cli.client);
+    UnixDatagram::bind(&cli.client).unwrap()
 }
 
 async fn recv(uds: UnixDatagram) -> ManagementResponse {
