@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.66"
 clap = { version = "4.0.18", features = ["derive"] }
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", version = "0.1.0" }
 libloading = "0.7.3"

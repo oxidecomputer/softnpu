@@ -1,6 +1,5 @@
 use clap::Parser;
 use std::fs::read_to_string;
-use std::error::Error;
 use serde::Deserialize;
 use dlpi::{DlpiHandle, sys::dlpi_recvinfo_t};
 use libloading::os::unix::{Library, Symbol, RTLD_NOW};
@@ -10,15 +9,13 @@ use std::sync::Arc;
 use p4rs::{packet_in, packet_out, Pipeline};
 use tokio::net::UnixDatagram;
 use softnpu_standalone::mgmt;
-
-
-// TODO make configurable
-const MTU: usize = 1600;
+use anyhow::{anyhow, Result};
 
 #[derive(Debug, Deserialize)]
 pub struct Port {
     pub sidecar: String,
     pub scrimlet: String,
+    pub mtu: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -37,27 +34,37 @@ pub struct Switch {
 pub struct SwitchPort {
     pub sidecar: DlpiHandle,
     pub scrimlet: DlpiHandle,
+    pub mtu: usize,
 }
 
 impl Switch {
-    fn new(ports: &Vec<Port>) -> Result<Switch, Box<dyn Error>> {
+    fn new(ports: &Vec<Port>) -> Result<Switch> {
         Ok(Switch{
             ports: Self::init_ports(ports)?,
         })
     }
 
-    fn init_ports(ports: &Vec<Port>)
-    -> Result<Vec<SwitchPort>, Box<dyn Error>> {
+    fn init_ports(ports: &Vec<Port>) -> Result<Vec<SwitchPort>> {
         let mut result = Vec::new();
         for p in ports {
-            let sidecar = Self::init_port(&p.sidecar)?;
-            let scrimlet = Self::init_port(&p.scrimlet)?;
-            result.push(SwitchPort{sidecar, scrimlet})
+            let sidecar = Self::init_port(&p.sidecar)
+                .map_err(|e| anyhow!(
+                    "initializing sidecar port {} failed: {}",
+                    p.sidecar,
+                    e,
+                ))?;
+            let scrimlet = Self::init_port(&p.scrimlet)
+                .map_err(|e| anyhow!(
+                    "initializing scrimlet port {} failed: {}",
+                    p.sidecar,
+                    e,
+                ))?;
+            result.push(SwitchPort{sidecar, scrimlet, mtu: p.mtu})
         }
         Ok(result)
     }
 
-    fn init_port(devname: &str) -> Result<DlpiHandle, Box<dyn Error>> {
+    fn init_port(devname: &str) -> Result<DlpiHandle> {
         let p = dlpi::open(&devname, dlpi::sys::DLPI_RAW)?;
         dlpi::bind(p, 0x86dd)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_MULTI)?;
@@ -71,25 +78,24 @@ impl Switch {
 #[derive(Parser, Debug)]
 struct Cli {
     /// soft-npu configuration file path
-    config: String
+    config: String,
 }
 
-fn load_program(path: &str) 
--> Result<(Library, Box<dyn Pipeline>), Box<dyn Error>> {
+fn load_program(path: &str) -> Result<(Library, Box<dyn Pipeline>)> {
     let lib = match unsafe { Library::open(Some(&path), RTLD_NOW) } {
         Ok(l) => l,
         Err(e) => {
-            Err(format!("failed to load p4 program: {}", e))?
+            return Err(anyhow!("failed to load p4 program: {}", e))
         }
     };
     let func: Symbol<unsafe extern "C" fn() -> *mut dyn Pipeline> =
         match unsafe { lib.get(b"_main_pipeline_create") } {
             Ok(f) => f,
             Err(e) => {
-                Err(format!(
+                return Err(anyhow!(
                     "failed to load _main_pipeline_create func: {}",
                     e
-                ))?
+                ))
             }
         };
 
@@ -117,9 +123,10 @@ async fn run_ingress_packet_handler(
 ) {
     info!(log, "ingress packet handler is running for port {}", index);
     let dh = switch.ports[index].sidecar;
+    let mtu = switch.ports[index].mtu;
     loop {
         let mut src = [0u8; dlpi::sys::DLPI_PHYSADDR_MAX];
-        let mut msg = [0u8; MTU];
+        let mut msg = vec![0u8; mtu];
         let mut recvinfo = dlpi_recvinfo_t::default();
         let n = match dlpi::recv_async(
             dh,
@@ -156,9 +163,10 @@ async fn run_egress_packet_handler(
 ) {
     info!(log, "egress packet handler is running for port {}", index);
     let dh = switch.ports[index].scrimlet;
+    let mtu = switch.ports[index].mtu;
     loop {
         let mut src = [0u8; dlpi::sys::DLPI_PHYSADDR_MAX];
-        let mut msg = [0u8; MTU];
+        let mut msg = vec![0u8; mtu];
         let mut recvinfo = dlpi_recvinfo_t::default();
         let n = match dlpi::recv_async(
             dh,
@@ -172,7 +180,7 @@ async fn run_egress_packet_handler(
                 continue;
             }
         };
-        let mut frame = [0u8; MTU];
+        let mut frame = vec![0u8; mtu];
 
         frame[..14].clone_from_slice(&msg[..14]);
         let orig_ethertype = [frame[12], frame[13]];
@@ -306,11 +314,27 @@ async fn handle_packet_to_cpu_port<'a>(
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let cli = Cli::parse();
-    let txt = read_to_string(&cli.config)?;
-    let config: Config = toml::from_str(&txt)?;
+async fn main() {
+
     let log = init_logger();
+
+    if let Err(e) = run(log.clone()).await {
+        error!(log, "{}", e);
+    }
+
+}
+async fn run(log: Logger) -> Result<()> {
+    let cli = Cli::parse();
+    let txt = read_to_string(&cli.config)
+        .map_err(|e|
+            anyhow!("read config file {} error: {}", cli.config, e)
+        )?;
+
+    let config: Config = toml::from_str(&txt)
+        .map_err(|e|
+            anyhow!("parse config file {} error: {}", cli.config, e)
+        )?;
+
 
     println!("{:#?}", config);
 
@@ -339,10 +363,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let _ = std::fs::remove_file(server);
 
-    let uds = Arc::new(UnixDatagram::bind(server).unwrap());
+    let uds = Arc::new(
+        UnixDatagram::bind(server)
+        .map_err(|e| anyhow!("failed to open management socket: {}", e))?
+    );
+
     loop {
         let mut buf = vec![0u8; 10240];
-        let n = uds.recv(&mut buf).await.unwrap();
+        let n = match uds.recv(&mut buf).await {
+            Ok(n) => n,
+            Err(e) => {
+                error!(log, "management socket recv: {}", e);
+                continue;
+            }
+        };
         let msg: mgmt::ManagementRequest = 
             match serde_json::from_slice(&buf[..n]) {
             Ok(msg) => msg,
