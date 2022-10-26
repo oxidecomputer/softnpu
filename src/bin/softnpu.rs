@@ -1,15 +1,15 @@
-use clap::Parser;
-use std::fs::read_to_string;
-use serde::Deserialize;
-use dlpi::{DlpiHandle, sys::dlpi_recvinfo_t};
-use libloading::os::unix::{Library, Symbol, RTLD_NOW};
-use slog::{error, info, warn, Logger, Drain};
-use tokio::sync::Mutex;
-use std::sync::Arc;
-use p4rs::{packet_in, packet_out, Pipeline};
-use tokio::net::UnixDatagram;
-use softnpu_standalone::mgmt;
 use anyhow::{anyhow, Result};
+use clap::Parser;
+use dlpi::{sys::dlpi_recvinfo_t, DlpiHandle};
+use libloading::os::unix::{Library, Symbol, RTLD_NOW};
+use p4rs::{packet_in, packet_out, Pipeline};
+use serde::Deserialize;
+use slog::{error, info, warn, Drain, Logger};
+use softnpu_standalone::mgmt;
+use std::fs::read_to_string;
+use std::sync::Arc;
+use tokio::net::UnixDatagram;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Deserialize)]
 pub struct Port {
@@ -29,7 +29,6 @@ pub struct Switch {
     pub ports: Vec<SwitchPort>,
 }
 
-
 #[derive(Clone, Copy)]
 pub struct SwitchPort {
     pub sidecar: DlpiHandle,
@@ -39,7 +38,7 @@ pub struct SwitchPort {
 
 impl Switch {
     fn new(ports: &Vec<Port>) -> Result<Switch> {
-        Ok(Switch{
+        Ok(Switch {
             ports: Self::init_ports(ports)?,
         })
     }
@@ -47,19 +46,26 @@ impl Switch {
     fn init_ports(ports: &Vec<Port>) -> Result<Vec<SwitchPort>> {
         let mut result = Vec::new();
         for p in ports {
-            let sidecar = Self::init_port(&p.sidecar)
-                .map_err(|e| anyhow!(
-                    "initializing sidecar port {} failed: {}",
-                    p.sidecar,
-                    e,
-                ))?;
-            let scrimlet = Self::init_port(&p.scrimlet)
-                .map_err(|e| anyhow!(
+            let sidecar =
+                Self::init_port(&p.sidecar).map_err(|e| {
+                    anyhow!(
+                        "initializing sidecar port {} failed: {}",
+                        p.sidecar,
+                        e,
+                    )
+                })?;
+            let scrimlet = Self::init_port(&p.scrimlet).map_err(|e| {
+                anyhow!(
                     "initializing scrimlet port {} failed: {}",
                     p.sidecar,
                     e,
-                ))?;
-            result.push(SwitchPort{sidecar, scrimlet, mtu: p.mtu})
+                )
+            })?;
+            result.push(SwitchPort {
+                sidecar,
+                scrimlet,
+                mtu: p.mtu,
+            })
         }
         Ok(result)
     }
@@ -84,9 +90,7 @@ struct Cli {
 fn load_program(path: &str) -> Result<(Library, Box<dyn Pipeline>)> {
     let lib = match unsafe { Library::open(Some(&path), RTLD_NOW) } {
         Ok(l) => l,
-        Err(e) => {
-            return Err(anyhow!("failed to load p4 program: {}", e))
-        }
+        Err(e) => return Err(anyhow!("failed to load p4 program: {}", e)),
     };
     let func: Symbol<unsafe extern "C" fn() -> *mut dyn Pipeline> =
         match unsafe { lib.get(b"_main_pipeline_create") } {
@@ -114,7 +118,6 @@ fn init_logger() -> Logger {
     slog::Logger::root(drain, slog::o!())
 }
 
-
 async fn run_ingress_packet_handler(
     index: usize,
     switch: Switch,
@@ -128,30 +131,22 @@ async fn run_ingress_packet_handler(
         let mut src = [0u8; dlpi::sys::DLPI_PHYSADDR_MAX];
         let mut msg = vec![0u8; mtu];
         let mut recvinfo = dlpi_recvinfo_t::default();
-        let n = match dlpi::recv_async(
-            dh,
-            &mut src,
-            &mut msg,
-            Some(&mut recvinfo),
-        ).await {
-            Ok((_, n)) => n,
-            Err(e) => {
-                error!(log, "rx error at index {}: {}", index, e);
-                continue;
-            }
-        };
+        let n =
+            match dlpi::recv_async(dh, &mut src, &mut msg, Some(&mut recvinfo))
+                .await
+            {
+                Ok((_, n)) => n,
+                Err(e) => {
+                    error!(log, "rx error at index {}: {}", index, e);
+                    continue;
+                }
+            };
 
         // TODO pipeline should not need to be mutable for packet handling?
         let pkt = packet_in::new(&msg[..n]);
         let mut pl = pipeline.lock().await;
 
-        handle_external_packet(
-            index + 1,
-            pkt,
-            &switch,
-            &mut *pl,
-            &log,
-        ).await;
+        handle_external_packet(index + 1, pkt, &switch, &mut *pl, &log).await;
     }
 }
 
@@ -168,18 +163,16 @@ async fn run_egress_packet_handler(
         let mut src = [0u8; dlpi::sys::DLPI_PHYSADDR_MAX];
         let mut msg = vec![0u8; mtu];
         let mut recvinfo = dlpi_recvinfo_t::default();
-        let n = match dlpi::recv_async(
-            dh,
-            &mut src,
-            &mut msg,
-            Some(&mut recvinfo),
-        ).await {
-            Ok((_, n)) => n,
-            Err(e) => {
-                error!(log, "rx error at index {}: {}", index, e);
-                continue;
-            }
-        };
+        let n =
+            match dlpi::recv_async(dh, &mut src, &mut msg, Some(&mut recvinfo))
+                .await
+            {
+                Ok((_, n)) => n,
+                Err(e) => {
+                    error!(log, "rx error at index {}: {}", index, e);
+                    continue;
+                }
+            };
         let mut frame = vec![0u8; mtu];
 
         frame[..14].clone_from_slice(&msg[..14]);
@@ -193,20 +186,14 @@ async fn run_egress_packet_handler(
         frame[16] = portnum;
         frame[17] = orig_ethertype[0];
         frame[18] = orig_ethertype[1];
-        let m = (n-14)+35;
+        let m = (n - 14) + 35;
         frame[35..m].clone_from_slice(&msg[14..n]);
 
         // TODO pipeline should not need to be mutable for packet handling?
         let pkt = packet_in::new(&msg[..n]);
         let mut pl = pipeline.lock().await;
 
-        handle_internal_packet(
-            index + 1,
-            pkt,
-            &switch,
-            &mut *pl,
-            &log,
-        ).await
+        handle_internal_packet(index + 1, pkt, &switch, &mut *pl, &log).await
     }
 }
 
@@ -217,14 +204,11 @@ async fn handle_internal_packet<'a>(
     pipeline: &mut Box<dyn Pipeline>,
     log: &Logger,
 ) {
-
-    match pipeline.process_packet(index as u8, &mut pkt) {
-        Some((mut out_pkt, port)) => {
-            handle_packet_to_ext_port(&mut out_pkt, switch, port, &log);
-        }
-        None => {}
+    if let Some((mut out_pkt, port)) =
+        pipeline.process_packet(index as u8, &mut pkt)
+    {
+        handle_packet_to_ext_port(&mut out_pkt, switch, port, log);
     };
-
 }
 
 async fn handle_external_packet<'a>(
@@ -234,18 +218,17 @@ async fn handle_external_packet<'a>(
     pipeline: &mut Box<dyn Pipeline>,
     log: &Logger,
 ) {
-    match pipeline.process_packet(index as u8, &mut pkt) {
-        Some((mut out_pkt, port)) => {
-            // packet is going to CPU port
-            if port == 0 {
-                handle_packet_to_cpu_port(&mut out_pkt, switch, log).await;
-            }
-            // packet is passing through
-            else {
-                handle_packet_to_ext_port(&mut out_pkt, switch, port, &log);
-            }
+    if let Some((mut out_pkt, port)) =
+        pipeline.process_packet(index as u8, &mut pkt)
+    {
+        // packet is going to CPU port
+        if port == 0 {
+            handle_packet_to_cpu_port(&mut out_pkt, switch, log).await;
         }
-        None => {}
+        // packet is passing through
+        else {
+            handle_packet_to_ext_port(&mut out_pkt, switch, port, log);
+        }
     };
 }
 
@@ -274,7 +257,6 @@ async fn handle_packet_to_cpu_port<'a>(
     switch: &Switch,
     log: &Logger,
 ) {
-
     // get the destination port
     // 16 =
     //   size_of(ethernet) = 14 +
@@ -310,31 +292,24 @@ async fn handle_packet_to_cpu_port<'a>(
             error!(log, "tx (int,0): {}", e);
         }
     }
-
 }
 
 #[tokio::main]
 async fn main() {
-
     let log = init_logger();
 
     if let Err(e) = run(log.clone()).await {
         error!(log, "{}", e);
     }
-
 }
 async fn run(log: Logger) -> Result<()> {
     let cli = Cli::parse();
     let txt = read_to_string(&cli.config)
-        .map_err(|e|
-            anyhow!("read config file {} error: {}", cli.config, e)
-        )?;
+        .map_err(|e| anyhow!("read config file {} error: {}", cli.config, e))?;
 
-    let config: Config = toml::from_str(&txt)
-        .map_err(|e|
-            anyhow!("parse config file {} error: {}", cli.config, e)
-        )?;
-
+    let config: Config = toml::from_str(&txt).map_err(|e| {
+        anyhow!("parse config file {} error: {}", cli.config, e)
+    })?;
 
     println!("{:#?}", config);
 
@@ -365,7 +340,7 @@ async fn run(log: Logger) -> Result<()> {
 
     let uds = Arc::new(
         UnixDatagram::bind(server)
-        .map_err(|e| anyhow!("failed to open management socket: {}", e))?
+            .map_err(|e| anyhow!("failed to open management socket: {}", e))?,
     );
 
     loop {
@@ -377,11 +352,11 @@ async fn run(log: Logger) -> Result<()> {
                 continue;
             }
         };
-        let msg: mgmt::ManagementRequest = 
+        let msg: mgmt::ManagementRequest =
             match serde_json::from_slice(&buf[..n]) {
-            Ok(msg) => msg,
-            Err(_) => continue,
-        };
+                Ok(msg) => msg,
+                Err(_) => continue,
+            };
 
         mgmt::handle_management_message(
             msg,
@@ -390,7 +365,7 @@ async fn run(log: Logger) -> Result<()> {
             client,
             config.ports.len(),
             log.clone(),
-        ).await;
+        )
+        .await;
     }
-
 }

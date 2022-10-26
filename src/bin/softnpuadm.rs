@@ -1,11 +1,11 @@
 use clap::{Parser, Subcommand};
-use std::net::{Ipv6Addr, Ipv4Addr, IpAddr};
+use p4rs::TableEntry;
 use softnpu_standalone::mgmt::{
     ManagementRequest, ManagementResponse, TableAdd, TableRemove,
 };
-use tokio::net::UnixDatagram;
-use p4rs::TableEntry;
 use std::collections::BTreeMap;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use tokio::net::UnixDatagram;
 
 #[derive(Parser, Debug)]
 #[clap(version, about)]
@@ -156,7 +156,11 @@ enum Commands {
     RemoveNat4 { dst: Ipv4Addr, begin: u16, end: u16 },
 
     /// Add a proxy ARP entry.
-    AddProxyArp { begin: Ipv4Addr, end: Ipv4Addr, mac: MacAddr },
+    AddProxyArp {
+        begin: Ipv4Addr,
+        end: Ipv4Addr,
+        mac: MacAddr,
+    },
 
     /// Remove a proxy ARP entry.
     RemoveProxyArp { begin: Ipv4Addr, end: Ipv4Addr },
@@ -192,7 +196,12 @@ async fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::AddRoute4 { destination, mask, port, nexthop } => {
+        Commands::AddRoute4 {
+            destination,
+            mask,
+            port,
+            nexthop,
+        } => {
             let mut keyset_data: Vec<u8> = destination.octets().into();
             keyset_data.push(mask);
 
@@ -205,7 +214,8 @@ async fn main() {
                 action: 1,
                 keyset_data,
                 parameter_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveRoute4 { destination, mask } => {
@@ -215,10 +225,16 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 3,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
-        Commands::AddRoute6 { destination, mask, port, nexthop } => {
+        Commands::AddRoute6 {
+            destination,
+            mask,
+            port,
+            nexthop,
+        } => {
             let mut keyset_data: Vec<u8> = destination.octets().into();
             keyset_data.push(mask);
 
@@ -231,7 +247,8 @@ async fn main() {
                 action: 1,
                 keyset_data,
                 parameter_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveRoute6 { destination, mask } => {
@@ -241,10 +258,18 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 2,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
-        Commands::AddNat4 { dst, begin, end, target, vni, mac } => {
+        Commands::AddNat4 {
+            dst,
+            begin,
+            end,
+            target,
+            vni,
+            mac,
+        } => {
             if vni >= 1 << 24 {
                 println!("vni too big, only 24 bits");
                 std::process::exit(1);
@@ -264,7 +289,8 @@ async fn main() {
                 action: 0,
                 keyset_data,
                 parameter_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveNat4 { dst, begin, end } => {
@@ -275,10 +301,18 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 4,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
-        Commands::AddNat6 { dst, begin, end, target, vni, mac } => {
+        Commands::AddNat6 {
+            dst,
+            begin,
+            end,
+            target,
+            vni,
+            mac,
+        } => {
             if vni >= 1 << 24 {
                 println!("vni too big, only 24 bits");
                 std::process::exit(1);
@@ -298,7 +332,8 @@ async fn main() {
                 action: 0,
                 keyset_data,
                 parameter_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveNat6 { dst, begin, end } => {
@@ -309,7 +344,8 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 5,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::AddAddress4 { address } => {
@@ -319,7 +355,8 @@ async fn main() {
                 action: 0,
                 keyset_data,
                 ..Default::default()
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveAddress4 { address } => {
@@ -327,7 +364,8 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 1,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::AddAddress6 { address } => {
@@ -337,7 +375,8 @@ async fn main() {
                 action: 0,
                 keyset_data,
                 ..Default::default()
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveAddress6 { address } => {
@@ -345,7 +384,8 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 0,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::SetMac { port, mac } => {
@@ -356,7 +396,8 @@ async fn main() {
                 action: 0,
                 keyset_data,
                 parameter_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::ClearMac { port } => {
@@ -364,16 +405,17 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 10,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::PortCount => {
             let uds = bind();
-            let j = tokio::spawn(async move { 
-                match recv(uds).await {
-                    ManagementResponse::RadixResponse(n) => println!("{}", n),
-                    _ => {}
-                }});
+            let j = tokio::spawn(async move {
+                if let ManagementResponse::RadixResponse(n) = recv(uds).await {
+                    println!("{}", n)
+                }
+            });
             send(ManagementRequest::RadixRequest).await;
             j.await.unwrap();
         }
@@ -386,7 +428,8 @@ async fn main() {
                 action: 0,
                 keyset_data,
                 parameter_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveNdpEntry { l3 } => {
@@ -394,7 +437,8 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 9,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::AddArpEntry { l3, l2 } => {
@@ -405,7 +449,8 @@ async fn main() {
                 action: 0,
                 keyset_data,
                 parameter_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveArpEntry { l3 } => {
@@ -413,18 +458,19 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 8,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::DumpState => {
             let uds = bind();
-            let j = tokio::spawn(async move { 
-                match recv(uds).await {
-                    ManagementResponse::DumpResponse(ref tables) => {
-                        dump_tables(tables);
-                    }
-                    _ => {}
-                }});
+            let j = tokio::spawn(async move {
+                if let ManagementResponse::DumpResponse(ref tables) =
+                    recv(uds).await
+                {
+                    dump_tables(tables);
+                }
+            });
             send(ManagementRequest::DumpRequest).await;
             j.await.unwrap();
         }
@@ -440,7 +486,8 @@ async fn main() {
                 action: 0,
                 keyset_data,
                 parameter_data,
-            })).await;
+            }))
+            .await;
         }
 
         Commands::RemoveProxyArp { begin, end } => {
@@ -450,7 +497,8 @@ async fn main() {
             send(ManagementRequest::TableRemove(TableRemove {
                 table: 11,
                 keyset_data,
-            })).await;
+            }))
+            .await;
         }
     }
 }
@@ -630,7 +678,10 @@ fn dump_tables(tables: &BTreeMap<u32, Vec<TableEntry>>) {
 }
 
 fn dump_table_entry(e: &p4rs::TableEntry) {
-    println!("{} {:#x?} {:#x?}", e.action_id, e.keyset_data, e.parameter_data);
+    println!(
+        "{} {:#x?} {:#x?}",
+        e.action_id, e.keyset_data, e.parameter_data
+    );
 }
 
 fn get_addr(data: &[u8]) -> Option<IpAddr> {

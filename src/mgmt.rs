@@ -1,10 +1,10 @@
-use tokio::net::UnixDatagram;
+use p4rs::{Pipeline, TableEntry};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use tokio::sync::Mutex;
-use std::sync::Arc;
-use p4rs::{TableEntry, Pipeline};
 use slog::Logger;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use tokio::net::UnixDatagram;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub enum ManagementRequest {
@@ -43,7 +43,6 @@ pub async fn handle_management_message(
     radix: usize,
     _log: Logger,
 ) {
-
     let mut pl = pipeline.lock().await;
 
     match msg {
@@ -79,5 +78,4 @@ pub async fn handle_management_message(
             uds.send_to(&buf, uds_dst).await.unwrap();
         }
     }
-
 }
