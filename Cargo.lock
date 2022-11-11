@@ -474,7 +474,7 @@ checksum = "9ff7415e9ae3fff1225851df9e0d9e4e5479f947619774677a63572e55e80eff"
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4#4f8ae330999a624f6753f5b06c6c3e006ca6917d"
+source = "git+https://github.com/oxidecomputer/p4?branch=main#c48387a466cbec7bee3d11cbc89fe670943c610b"
 dependencies = [
  "bitvec",
  "colored",
@@ -828,7 +828,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "softnpu-standalone"
+name = "softnpu"
 version = "0.1.0"
 dependencies = [
  "anyhow",

@@ -20,6 +20,10 @@ set -o xtrace
 cargo --version
 rustc --version
 
+banner "check"
+cargo fmt -- --check
+cargo clippy -- --deny warnings
+
 banner "build"
 ptime -m cargo build
 ptime -m cargo build --release
@@ -28,8 +32,5 @@ for x in debug release
 do
     mkdir -p /work/$x
     cp target/$x/softnpu /work/$x/
-    cp target/$x/softnpuadm /work/$x/
 done
 
-cargo fmt -- --check
-cargo clippy -- --deny warnings

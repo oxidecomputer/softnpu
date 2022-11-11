@@ -1,5 +1,5 @@
 [package]
-name = "softnpu-standalone"
+name = "softnpu"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,7 +10,7 @@ anyhow = "1.0.66"
 clap = { version = "4.0.18", features = ["derive"] }
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", version = "0.1.0" }
 libloading = "0.7.3"
-p4rs = { git = "https://github.com/oxidecomputer/p4", version = "0.1.0" }
+p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "main" }
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = "1.0.87"
 slog = "2.7.0"

@@ -1,3 +1,5 @@
+// Copyright 2022 Oxide Computer Company
+
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use dlpi::{sys::dlpi_recvinfo_t, DlpiHandle};
@@ -5,7 +7,7 @@ use libloading::os::unix::{Library, Symbol, RTLD_NOW};
 use p4rs::{packet_in, packet_out, Pipeline};
 use serde::Deserialize;
 use slog::{error, info, warn, Drain, Logger};
-use softnpu_standalone::mgmt;
+use softnpu::mgmt;
 use std::fs::read_to_string;
 use std::sync::Arc;
 use tokio::net::UnixDatagram;
@@ -71,7 +73,7 @@ impl Switch {
     }
 
     fn init_port(devname: &str) -> Result<DlpiHandle> {
-        let p = dlpi::open(&devname, dlpi::sys::DLPI_RAW)?;
+        let p = dlpi::open(devname, dlpi::sys::DLPI_RAW)?;
         dlpi::bind(p, 0x86dd)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_MULTI)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_SAP)?;
@@ -146,7 +148,7 @@ async fn run_ingress_packet_handler(
         let pkt = packet_in::new(&msg[..n]);
         let mut pl = pipeline.lock().await;
 
-        handle_external_packet(index + 1, pkt, &switch, &mut *pl, &log).await;
+        handle_external_packet(index + 1, pkt, &switch, &mut pl, &log).await;
     }
 }
 
@@ -193,7 +195,7 @@ async fn run_egress_packet_handler(
         let pkt = packet_in::new(&msg[..n]);
         let mut pl = pipeline.lock().await;
 
-        handle_internal_packet(index + 1, pkt, &switch, &mut *pl, &log).await
+        handle_internal_packet(index + 1, pkt, &switch, &mut pl, &log).await
     }
 }
 
@@ -205,7 +207,7 @@ async fn handle_internal_packet<'a>(
     log: &Logger,
 ) {
     if let Some((mut out_pkt, port)) =
-        pipeline.process_packet(index as u8, &mut pkt)
+        pipeline.process_packet(index as u16, &mut pkt)
     {
         handle_packet_to_ext_port(&mut out_pkt, switch, port, log);
     };
@@ -219,7 +221,7 @@ async fn handle_external_packet<'a>(
     log: &Logger,
 ) {
     if let Some((mut out_pkt, port)) =
-        pipeline.process_packet(index as u8, &mut pkt)
+        pipeline.process_packet(index as u16, &mut pkt)
     {
         // packet is going to CPU port
         if port == 0 {
@@ -235,7 +237,7 @@ async fn handle_external_packet<'a>(
 fn handle_packet_to_ext_port<'a>(
     pkt: &mut packet_out<'a>,
     switch: &Switch,
-    port: u8,
+    port: u16,
     log: &Logger,
 ) {
     let dh = switch.ports[port as usize - 1].sidecar;

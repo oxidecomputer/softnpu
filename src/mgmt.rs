@@ -1,3 +1,5 @@
+// Copyright 2022 Oxide Computer Company
+
 use p4rs::{Pipeline, TableEntry};
 use serde::{Deserialize, Serialize};
 use slog::Logger;
@@ -18,20 +20,20 @@ pub enum ManagementRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ManagementResponse {
     RadixResponse(u16),
-    DumpResponse(BTreeMap<u32, Vec<TableEntry>>),
+    DumpResponse(BTreeMap<String, Vec<TableEntry>>),
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct TableAdd {
-    pub table: u32,
-    pub action: u32,
+    pub table: String,
+    pub action: String,
     pub keyset_data: Vec<u8>,
     pub parameter_data: Vec<u8>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct TableRemove {
-    pub table: u32,
+    pub table: String,
     pub keyset_data: Vec<u8>,
 }
 
@@ -48,14 +50,14 @@ pub async fn handle_management_message(
     match msg {
         ManagementRequest::TableAdd(tm) => {
             pl.add_table_entry(
-                tm.table,
-                tm.action,
+                &tm.table,
+                &tm.action,
                 &tm.keyset_data,
                 &tm.parameter_data,
             );
         }
         ManagementRequest::TableRemove(tm) => {
-            pl.remove_table_entry(tm.table, &tm.keyset_data);
+            pl.remove_table_entry(&tm.table, &tm.keyset_data);
         }
         ManagementRequest::RadixRequest => {
             let response = ManagementResponse::RadixResponse(radix as u16);
@@ -65,12 +67,12 @@ pub async fn handle_management_message(
         ManagementRequest::DumpRequest => {
             let mut result = BTreeMap::new();
 
-            for i in 0..pl.get_table_count() {
-                let entries = match pl.get_table_entries(i) {
+            for id in pl.get_table_ids() {
+                let entries = match pl.get_table_entries(id) {
                     Some(entries) => entries,
                     None => Vec::new(),
                 };
-                result.insert(i, entries);
+                result.insert(id.to_string(), entries);
             }
 
             let response = ManagementResponse::DumpResponse(result);
