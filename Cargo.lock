@@ -1017,6 +1017,7 @@ dependencies = [
  "devinfo",
  "dlpi",
  "indicatif",
+ "libc",
  "libloading",
  "p4rs",
  "p9ds",
