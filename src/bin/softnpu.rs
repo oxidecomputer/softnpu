@@ -206,11 +206,9 @@ async fn handle_internal_packet<'a>(
     pipeline: &mut Box<dyn Pipeline>,
     log: &Logger,
 ) {
-    if let Some((mut out_pkt, port)) =
-        pipeline.process_packet(index as u16, &mut pkt)
-    {
+    for (mut out_pkt, port) in pipeline.process_packet(index as u16, &mut pkt) {
         handle_packet_to_ext_port(&mut out_pkt, switch, port, log);
-    };
+    }
 }
 
 async fn handle_external_packet<'a>(
@@ -220,9 +218,7 @@ async fn handle_external_packet<'a>(
     pipeline: &mut Box<dyn Pipeline>,
     log: &Logger,
 ) {
-    if let Some((mut out_pkt, port)) =
-        pipeline.process_packet(index as u16, &mut pkt)
-    {
+    for (mut out_pkt, port) in pipeline.process_packet(index as u16, &mut pkt) {
         // packet is going to CPU port
         if port == 0 {
             handle_packet_to_cpu_port(&mut out_pkt, switch, log).await;
@@ -231,7 +227,7 @@ async fn handle_external_packet<'a>(
         else {
             handle_packet_to_ext_port(&mut out_pkt, switch, port, log);
         }
-    };
+    }
 }
 
 fn handle_packet_to_ext_port<'a>(
