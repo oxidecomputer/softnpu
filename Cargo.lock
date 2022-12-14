@@ -255,6 +255,14 @@ dependencies = [
 [[package]]
 name = "devinfo"
 version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/devinfo-sys?branch=main#b1a9fb8533abbae9dd6e78714fe068079227bf74"
+dependencies = [
+ "num_enum",
+]
+
+[[package]]
+name = "devinfo"
+version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/devinfo-sys#b1a9fb8533abbae9dd6e78714fe068079227bf74"
 dependencies = [
  "num_enum",
@@ -293,10 +301,11 @@ dependencies = [
 
 [[package]]
 name = "dlpi"
-version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/dlpi-sys#ca2366edd3d19fa0deefd800b3d356b901ef7cb0"
+version = "0.2.0"
+source = "git+https://github.com/oxidecomputer/dlpi-sys?branch=main#1d587ea98cf2d36f1b1624b0b960559c76d475d2"
 dependencies = [
  "libc",
+ "libdlpi-sys",
  "num_enum",
  "pretty-hex",
  "thiserror",
@@ -475,6 +484,11 @@ name = "libc"
 version = "0.2.138"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db6d7e329c562c5dfab7a46a2afabc8b987ab9a4834c9d1ca04dc54c1546cef8"
+
+[[package]]
+name = "libdlpi-sys"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/dlpi-sys?branch=main#1d587ea98cf2d36f1b1624b0b960559c76d475d2"
 
 [[package]]
 name = "libloading"
@@ -686,7 +700,7 @@ dependencies = [
 [[package]]
 name = "p9ds"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p9fs#7251cbb06fedb4117cae61f853cd4bfc95774f93"
+source = "git+https://github.com/oxidecomputer/p9fs?branch=main#7251cbb06fedb4117cae61f853cd4bfc95774f93"
 dependencies = [
  "ispf",
  "num_enum",
@@ -698,12 +712,12 @@ dependencies = [
 [[package]]
 name = "p9kp"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p9fs#7251cbb06fedb4117cae61f853cd4bfc95774f93"
+source = "git+https://github.com/oxidecomputer/p9fs?branch=main#7251cbb06fedb4117cae61f853cd4bfc95774f93"
 dependencies = [
  "async-recursion",
  "async-trait",
  "clap 3.2.23",
- "devinfo",
+ "devinfo 0.1.0 (git+https://github.com/oxidecomputer/devinfo-sys)",
  "ispf",
  "libc",
  "p9ds",
@@ -1092,7 +1106,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 4.0.29",
- "devinfo",
+ "devinfo 0.1.0 (git+https://github.com/oxidecomputer/devinfo-sys?branch=main)",
  "dlpi",
  "indicatif",
  "libc",
