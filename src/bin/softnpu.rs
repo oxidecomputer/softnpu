@@ -230,8 +230,8 @@ async fn handle_external_packet<'a>(
     }
 }
 
-fn handle_packet_to_ext_port<'a>(
-    pkt: &mut packet_out<'a>,
+fn handle_packet_to_ext_port(
+    pkt: &mut packet_out<'_>,
     switch: &Switch,
     port: u16,
     log: &Logger,
