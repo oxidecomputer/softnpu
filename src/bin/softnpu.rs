@@ -182,14 +182,18 @@ async fn run_egress_packet_handler(
         frame[12] = 0x09;
         frame[13] = 0x01;
         // set up sidecar header
-        let portnum = index as u8 + 1;
+        let portnum = (index as u16 + 1).to_be_bytes();
         frame[14] = 0; // sc_code = forward from userspace
-        frame[15] = portnum;
-        frame[16] = portnum;
-        frame[17] = orig_ethertype[0];
-        frame[18] = orig_ethertype[1];
-        let m = (n - 14) + 35;
-        frame[35..m].clone_from_slice(&msg[14..n]);
+        frame[15] = 0; // pad
+        frame[16] = portnum[0];
+        frame[17] = portnum[1];
+        frame[18] = portnum[0];
+        frame[19] = portnum[1];
+        frame[20] = orig_ethertype[0];
+        frame[21] = orig_ethertype[1];
+        let m = n + 24;
+        // 38 = 14 (eth) + 24 (sidecar)
+        frame[38..m].clone_from_slice(&msg[14..n]);
 
         // TODO pipeline should not need to be mutable for packet handling?
         let pkt = packet_in::new(&msg[..n]);
@@ -271,8 +275,8 @@ async fn handle_packet_to_cpu_port<'a>(
     let dh = switch.ports[portnum - 1].scrimlet;
 
     // replace sidecar ethertype with encapsulated packet ethertype
-    let et0 = pkt.header_data[17];
-    let et1 = pkt.header_data[18];
+    let et0 = pkt.header_data[20];
+    let et1 = pkt.header_data[21];
     let eth = &mut pkt.header_data.as_mut_slice()[..14];
     eth[12] = et0;
     eth[13] = et1;
@@ -280,7 +284,8 @@ async fn handle_packet_to_cpu_port<'a>(
     //TODO avoid copying the whole packet
     let mut out = eth.to_vec();
     // skip sidecar header and write out L3 header
-    let l3 = &pkt.header_data.as_mut_slice()[35..];
+    // 38 = 14 (eth) + 24 (sidecar)
+    let l3 = &pkt.header_data.as_mut_slice()[38..];
     out.extend_from_slice(l3);
     out.extend_from_slice(pkt.payload_data);
 
