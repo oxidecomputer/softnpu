@@ -13,6 +13,8 @@ use std::sync::Arc;
 use tokio::net::UnixDatagram;
 use tokio::sync::Mutex;
 
+const L2_HEADROOM: usize = 20;
+
 #[derive(Debug, Deserialize)]
 pub struct Port {
     pub sidecar: String,
@@ -128,7 +130,7 @@ async fn run_ingress_packet_handler(
 ) {
     info!(log, "ingress packet handler is running for port {}", index);
     let dh = switch.ports[index].sidecar;
-    let mtu = switch.ports[index].mtu;
+    let mtu = switch.ports[index].mtu + L2_HEADROOM;
     loop {
         let mut src = [0u8; dlpi::sys::DLPI_PHYSADDR_MAX];
         let mut msg = vec![0u8; mtu];
@@ -160,7 +162,7 @@ async fn run_egress_packet_handler(
 ) {
     info!(log, "egress packet handler is running for port {}", index);
     let dh = switch.ports[index].scrimlet;
-    let mtu = switch.ports[index].mtu;
+    let mtu = switch.ports[index].mtu + L2_HEADROOM;
     loop {
         let mut src = [0u8; dlpi::sys::DLPI_PHYSADDR_MAX];
         let mut msg = vec![0u8; mtu];
