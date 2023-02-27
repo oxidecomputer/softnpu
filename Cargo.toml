@@ -13,7 +13,7 @@ dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
 indicatif = "0.17.2"
 libc = "0.2.137"
 libloading = "0.7.3"
-p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "main" }
+p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "endian-roundup-part-2" }
 p9ds = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
 p9kp = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
 serde = { version = "1.0.147", features = ["derive"] }

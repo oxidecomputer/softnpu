@@ -682,7 +682,7 @@ checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=main#6b67b3b0cf02fc8bb2bf8848c65efdccb464aefb"
+source = "git+https://github.com/oxidecomputer/p4?branch=endian-roundup-part-2#ee6078d9e1cfe77e4e57ff0468b245f3f46e9bed"
 dependencies = [
  "bitvec",
  "colored",
