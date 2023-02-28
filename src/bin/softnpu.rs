@@ -274,6 +274,15 @@ async fn handle_packet_to_cpu_port<'a>(
         return;
     }
 
+    if portnum > switch.ports.len() {
+        warn!(
+            log,
+            "portnum too large, {} of {}",
+            portnum - 1,
+            switch.ports.len() - 1
+        );
+        return;
+    }
     let dh = switch.ports[portnum - 1].scrimlet;
 
     // replace sidecar ethertype with encapsulated packet ethertype
