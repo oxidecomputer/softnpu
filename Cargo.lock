@@ -314,7 +314,7 @@ dependencies = [
 [[package]]
 name = "dof"
 version = "0.1.5"
-source = "git+https://github.com/oxidecomputer/usdt#9139ae76639d1e77209347a5db8b9c1929083904"
+source = "git+https://github.com/oxidecomputer/usdt#820c3b0809d62afaaf5893ab9019cf5c3df86648"
 dependencies = [
  "thiserror",
  "zerocopy",
@@ -323,7 +323,7 @@ dependencies = [
 [[package]]
 name = "dtrace-parser"
 version = "0.1.14"
-source = "git+https://github.com/oxidecomputer/usdt#9139ae76639d1e77209347a5db8b9c1929083904"
+source = "git+https://github.com/oxidecomputer/usdt#820c3b0809d62afaaf5893ab9019cf5c3df86648"
 dependencies = [
  "pest",
  "pest_derive",
@@ -682,7 +682,7 @@ checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=endian-roundup-part-2#ee6078d9e1cfe77e4e57ff0468b245f3f46e9bed"
+source = "git+https://github.com/oxidecomputer/p4?branch=endian-roundup-part-2#b068dae828a9e4f5f6146d85dbea1768da68115d"
 dependencies = [
  "bitvec",
  "colored",
@@ -754,9 +754,9 @@ dependencies = [
 
 [[package]]
 name = "pest"
-version = "2.5.3"
+version = "2.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4257b4a04d91f7e9e6290be5d3da4804dd5784fafde3a497d73eb2b4a158c30a"
+checksum = "028accff104c4e513bad663bbcd2ad7cfd5304144404c31ed0a77ac103d00660"
 dependencies = [
  "thiserror",
  "ucd-trie",
@@ -764,9 +764,9 @@ dependencies = [
 
 [[package]]
 name = "pest_derive"
-version = "2.5.3"
+version = "2.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "241cda393b0cdd65e62e07e12454f1f25d57017dcc514b1514cd3c4645e3a0a6"
+checksum = "2ac3922aac69a40733080f53c1ce7f91dcf57e1a5f6c52f421fadec7fbdc4b69"
 dependencies = [
  "pest",
  "pest_generator",
@@ -774,9 +774,9 @@ dependencies = [
 
 [[package]]
 name = "pest_generator"
-version = "2.5.3"
+version = "2.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46b53634d8c8196302953c74d5352f33d0c512a9499bd2ce468fc9f4128fa27c"
+checksum = "d06646e185566b5961b4058dd107e0a7f56e77c3f484549fb119867773c0f202"
 dependencies = [
  "pest",
  "pest_meta",
@@ -787,9 +787,9 @@ dependencies = [
 
 [[package]]
 name = "pest_meta"
-version = "2.5.3"
+version = "2.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ef4f1332a8d4678b41966bb4cc1d0676880e84183a1ecc3f4b69f03e99c7a51"
+checksum = "e6f60b2ba541577e2a0c307c8f39d1439108120eb7903adeb6497fa880c59616"
 dependencies = [
  "once_cell",
  "pest",
@@ -1314,7 +1314,7 @@ checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
 [[package]]
 name = "usdt"
 version = "0.3.5"
-source = "git+https://github.com/oxidecomputer/usdt#9139ae76639d1e77209347a5db8b9c1929083904"
+source = "git+https://github.com/oxidecomputer/usdt#820c3b0809d62afaaf5893ab9019cf5c3df86648"
 dependencies = [
  "dtrace-parser",
  "serde",
@@ -1326,7 +1326,7 @@ dependencies = [
 [[package]]
 name = "usdt-attr-macro"
 version = "0.3.5"
-source = "git+https://github.com/oxidecomputer/usdt#9139ae76639d1e77209347a5db8b9c1929083904"
+source = "git+https://github.com/oxidecomputer/usdt#820c3b0809d62afaaf5893ab9019cf5c3df86648"
 dependencies = [
  "dtrace-parser",
  "proc-macro2",
@@ -1339,7 +1339,7 @@ dependencies = [
 [[package]]
 name = "usdt-impl"
 version = "0.3.5"
-source = "git+https://github.com/oxidecomputer/usdt#9139ae76639d1e77209347a5db8b9c1929083904"
+source = "git+https://github.com/oxidecomputer/usdt#820c3b0809d62afaaf5893ab9019cf5c3df86648"
 dependencies = [
  "byteorder",
  "dof",
@@ -1358,7 +1358,7 @@ dependencies = [
 [[package]]
 name = "usdt-macro"
 version = "0.3.5"
-source = "git+https://github.com/oxidecomputer/usdt#9139ae76639d1e77209347a5db8b9c1929083904"
+source = "git+https://github.com/oxidecomputer/usdt#820c3b0809d62afaaf5893ab9019cf5c3df86648"
 dependencies = [
  "dtrace-parser",
  "proc-macro2",
