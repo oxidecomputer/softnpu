@@ -9,6 +9,10 @@
 #:   "/work/release/*",
 #: ]
 #:
+#: [[publish]]
+#: series = "image"
+#: name = "softnpu"
+#: from_output = "/work/release/softnpu"
 
 set -o errexit
 set -o pipefail
