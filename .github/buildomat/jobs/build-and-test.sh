@@ -9,6 +9,15 @@
 #:   "/work/release/*",
 #: ]
 #:
+#: [[publish]]
+#: series = "image"
+#: name = "softnpu"
+#: from_output = "/work/release/softnpu"
+#:
+#: [[publish]]
+#: series = "image"
+#: name = "softnpu.sha256.txt"
+#: from_output = "/work/release/softnpu.sha256.txt"
 
 set -o errexit
 set -o pipefail
@@ -29,5 +38,6 @@ for x in debug release
 do
     mkdir -p /work/$x
     cp target/$x/softnpu /work/$x/
+    digest -a sha256 /work/$x/softnpu > /work/$x/softnpu.sha256.txt
 done
 
