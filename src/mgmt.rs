@@ -59,6 +59,7 @@ pub async fn handle_management_message(
                 &tm.action,
                 &tm.keyset_data,
                 &tm.parameter_data,
+                0,
             );
         }
         ManagementRequest::TableRemove(tm) => {
