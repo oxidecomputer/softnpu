@@ -1179,6 +1179,7 @@ dependencies = [
 name = "softnpu"
 version = "0.1.0"
 dependencies = [
+ "anstyle",
  "anyhow",
  "clap 4.2.7",
  "devinfo 0.1.0 (git+https://github.com/oxidecomputer/devinfo-sys?branch=main)",

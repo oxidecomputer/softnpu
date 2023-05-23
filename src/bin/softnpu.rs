@@ -86,9 +86,14 @@ impl Switch {
 }
 
 #[derive(Parser, Debug)]
+#[command(version, about, long_about = None, styles = get_styles())]
 struct Cli {
     /// soft-npu configuration file path
     config: String,
+
+    /// UDS socket path
+    #[arg(long, default_value = "/stuff")]
+    uds_path: String,
 }
 
 fn load_program(path: &str) -> Result<(Library, Box<dyn Pipeline>)> {
@@ -316,6 +321,7 @@ async fn main() {
         error!(log, "{}", e);
     }
 }
+
 async fn run(log: Logger) -> Result<()> {
     let cli = Cli::parse();
     let txt = read_to_string(&cli.config)
@@ -347,13 +353,13 @@ async fn run(log: Logger) -> Result<()> {
     }
 
     //TODO as parameters
-    let server = "/stuff/server";
-    let client = "/stuff/client";
+    let server = format!("{}/server", cli.uds_path);
+    let client = format!("{}/client", cli.uds_path);
 
-    let _ = std::fs::remove_file(server);
+    let _ = std::fs::remove_file(&server);
 
     let uds = Arc::new(
-        UnixDatagram::bind(server)
+        UnixDatagram::bind(&server)
             .map_err(|e| anyhow!("failed to open management socket: {}", e))?,
     );
 
@@ -376,10 +382,32 @@ async fn run(log: Logger) -> Result<()> {
             msg,
             pipe.clone(),
             uds.clone(),
-            client,
+            &client,
             config.ports.len(),
             log.clone(),
         )
         .await;
     }
+}
+
+pub fn get_styles() -> clap::builder::Styles {
+    clap::builder::Styles::styled()
+        .header(anstyle::Style::new().bold().underline().fg_color(Some(
+            anstyle::Color::Rgb(anstyle::RgbColor(245, 207, 101)),
+        )))
+        .literal(anstyle::Style::new().bold().fg_color(Some(
+            anstyle::Color::Rgb(anstyle::RgbColor(72, 213, 151)),
+        )))
+        .invalid(anstyle::Style::new().bold().fg_color(Some(
+            anstyle::Color::Rgb(anstyle::RgbColor(72, 213, 151)),
+        )))
+        .valid(anstyle::Style::new().bold().fg_color(Some(
+            anstyle::Color::Rgb(anstyle::RgbColor(72, 213, 151)),
+        )))
+        .usage(anstyle::Style::new().bold().fg_color(Some(
+            anstyle::Color::Rgb(anstyle::RgbColor(245, 207, 101)),
+        )))
+        .error(anstyle::Style::new().bold().fg_color(Some(
+            anstyle::Color::Rgb(anstyle::RgbColor(232, 104, 134)),
+        )))
 }

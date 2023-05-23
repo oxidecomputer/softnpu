@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.66"
-clap = { version = "4.0.18", features = ["derive"] }
+clap = { version = "4.2.5", features = ["derive", "unstable-styles"] }
 devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
 indicatif = "0.17.2"
@@ -24,3 +24,4 @@ slog-envlogger = "2.2.0"
 slog-term = "2.9.0"
 tokio = { version = "1.23.1", features = ["sync"] }
 toml = "0.5.9"
+anstyle = "1"
