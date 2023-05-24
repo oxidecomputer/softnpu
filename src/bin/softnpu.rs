@@ -203,7 +203,7 @@ async fn run_egress_packet_handler(
         frame[38..m].clone_from_slice(&msg[14..n]);
 
         // TODO pipeline should not need to be mutable for packet handling?
-        let pkt = packet_in::new(&msg[..n]);
+        let pkt = packet_in::new(&frame[..m]);
         let mut pl = pipeline.lock().await;
 
         handle_internal_packet(index + 1, pkt, &switch, &mut pl, &log).await
@@ -218,6 +218,14 @@ async fn handle_internal_packet<'a>(
     log: &Logger,
 ) {
     for (mut out_pkt, port) in pipeline.process_packet(index as u16, &mut pkt) {
+        if port == 0 {
+            warn!(
+                log,
+                "egress port=0 for internal packet on index {}, dropping",
+                index,
+            );
+            continue;
+        }
         handle_packet_to_ext_port(&mut out_pkt, switch, port, log);
     }
 }
@@ -270,7 +278,8 @@ async fn handle_packet_to_cpu_port<'a>(
     // 16 =
     //   size_of(ethernet) = 14 +
     //   offset(sidecar.sc_egress) = 2
-    let portnum = pkt.header_data[16] as usize;
+    let portnum =
+        u16::from_be_bytes([pkt.header_data[16], pkt.header_data[17]]) as usize;
 
     if portnum == 0 {
         warn!(log, "got sidecar egress port of 0");
