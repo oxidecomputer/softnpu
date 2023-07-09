@@ -1,9 +1,12 @@
+use anyhow::anyhow;
 use clap::Parser;
 use curl::easy::Easy;
 use libnet::{delete_link, LinkFlags, LinkHandle};
 use softnpu::cli::get_styles;
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
+use std::thread::sleep;
+use std::time::Duration;
 use zone::{Adm, Config};
 use ztest::{FsMount, SimnetLink, Zfs, Zone};
 
@@ -46,9 +49,13 @@ struct ZoneInfo {
     /// Name of the SoftNpu zone
     name: String,
 
-    /// Number of ports
-    #[clap(short, long)]
-    ports: usize,
+    /// Specify number of ports.
+    #[clap(long, default_value_t = 0)]
+    port_count: usize,
+
+    /// Specify specific as sys_port,host_port pairs.
+    #[clap(long)]
+    ports: Vec<String>,
 
     /// Also create the host zone and plumb in ports.
     #[clap(long)]
@@ -59,7 +66,14 @@ struct ZoneInfo {
 struct Resources {
     ports: Vec<SimnetLink>,
     zones: Vec<Zone>,
+    user_supplied_ports: Vec<String>,
     zfs: Vec<Zfs>,
+}
+
+#[derive(Debug, Clone)]
+enum PortSpec {
+    Count(usize),
+    List(Vec<String>),
 }
 
 const SOFTNPU_ZONE_NAME_SUFFIX: &str = "softnpu";
@@ -74,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
         SubCommand::Create(z) => {
             let mut resources = Resources::default();
             fetch_required_artifacts(&z.name).await?;
-            create_ports(&z.name, z.ports, &mut resources)?;
+            create_ports(&z.name, get_port_spec(&z)?, &mut resources)?;
             create_zones(&z.name, z.with_host, &mut resources)?;
             // Exit without calling cleanup destructors. We want the resources
             // to stay! If we exit due to a question mark, things will be
@@ -83,12 +97,26 @@ async fn main() -> anyhow::Result<()> {
         }
         SubCommand::Destroy(z) => {
             destroy_zones(&z.name, z.with_host);
-            destroy_ports(&z.name, z.ports);
+            destroy_ports(&z.name, get_port_spec(&z)?)?;
             std::fs::remove_dir_all(format!("/{}", z.name))?;
         }
     }
 
     Ok(())
+}
+
+fn get_port_spec(z: &ZoneInfo) -> anyhow::Result<PortSpec> {
+    if z.port_count != 0 && !z.ports.is_empty() {
+        return Err(anyhow!("--port-count and --ports are exclusive"));
+    }
+    if z.port_count == 0 && z.ports.is_empty() {
+        return Err(anyhow!("must provide --port-count or --ports"));
+    }
+    if z.port_count != 0 {
+        Ok(PortSpec::Count(z.port_count))
+    } else {
+        Ok(PortSpec::List(z.ports.clone()))
+    }
 }
 
 async fn fetch_required_artifacts(name: &str) -> anyhow::Result<()> {
@@ -247,46 +275,87 @@ async fn fetch_artifact(
 
 fn create_ports(
     name: &str,
-    count: usize,
+    spec: PortSpec,
     resources: &mut Resources,
 ) -> anyhow::Result<()> {
-    let mut cfg = softnpu::config::Config::default();
-    for i in 0..count {
-        println!("creating port {}", i);
-        let external_ifx = format!("{}_shx{}", name, i);
-        let internal_ifx = format!("{}_shi{}", name, i);
-        let scrimlet = internal_ifx.clone();
-        resources
-            .ports
-            .push(SimnetLink::new(&external_ifx, &internal_ifx)?);
+    let mut cfg = softnpu::config::Config {
+        p4_program: "/softnpu/asic_program.so".to_owned(),
+        ..Default::default()
+    };
+    match spec {
+        PortSpec::Count(count) => {
+            for i in 0..count {
+                println!("creating port {}", i);
+                let external_ifx = format!("{}_shx{}", name, i);
+                let internal_ifx = format!("{}_shi{}", name, i);
+                let scrimlet = internal_ifx.clone();
+                resources
+                    .ports
+                    .push(SimnetLink::new(&external_ifx, &internal_ifx)?);
 
-        let external_ifx = format!("{}_spx{}", name, i);
-        let internal_ifx = format!("{}_spi{}", name, i);
-        let sidecar = internal_ifx.clone();
-        resources
-            .ports
-            .push(SimnetLink::new(&external_ifx, &internal_ifx)?);
-        cfg.ports.push(softnpu::config::Port {
-            sidecar,
-            scrimlet,
-            mtu: 1500,
-        });
-
-        cfg.p4_program = "/softnpu/asic_program.so".to_owned();
+                let external_ifx = format!("{}_spx{}", name, i);
+                let internal_ifx = format!("{}_spi{}", name, i);
+                let sidecar = internal_ifx.clone();
+                resources
+                    .ports
+                    .push(SimnetLink::new(&external_ifx, &internal_ifx)?);
+                cfg.ports.push(softnpu::config::Port {
+                    sidecar,
+                    scrimlet,
+                    mtu: 9000,
+                });
+            }
+        }
+        PortSpec::List(ports) => {
+            for (i, p) in ports.iter().enumerate() {
+                let (sys, host) = p
+                    .split_once(',')
+                    .ok_or(anyhow!("--port expected sys,host found {p}"))?;
+                println!("creating port {host} for {sys}");
+                let external_ifx = host.to_string();
+                let internal_ifx = format!("{name}_shi{i}");
+                let scrimlet = internal_ifx.clone();
+                resources
+                    .ports
+                    .push(SimnetLink::new(&external_ifx, &internal_ifx)?);
+                resources.user_supplied_ports.push(sys.to_owned());
+                let sidecar = sys.to_owned();
+                cfg.ports.push(softnpu::config::Port {
+                    sidecar,
+                    scrimlet,
+                    mtu: 9000,
+                });
+            }
+        }
     }
+
     let filepath = format!("{}/softnpu.toml", runtime_dir(name));
     let mut f = std::fs::File::create(filepath)?;
     f.write_all(toml::to_string(&cfg)?.as_bytes())?;
     Ok(())
 }
 
-fn destroy_ports(name: &str, count: usize) {
-    for i in 0..count {
-        destroy_port(format!("{}_shx{}", name, i));
-        destroy_port(format!("{}_shi{}", name, i));
-        destroy_port(format!("{}_spx{}", name, i));
-        destroy_port(format!("{}_spi{}", name, i));
-    }
+fn destroy_ports(name: &str, port_spec: PortSpec) -> anyhow::Result<()> {
+    match port_spec {
+        PortSpec::Count(count) => {
+            for i in 0..count {
+                destroy_port(format!("{}_shx{}", name, i));
+                destroy_port(format!("{}_shi{}", name, i));
+                destroy_port(format!("{}_spx{}", name, i));
+                destroy_port(format!("{}_spi{}", name, i));
+            }
+        }
+        PortSpec::List(ports) => {
+            for (i, p) in ports.iter().enumerate() {
+                let (_sys, host) = p
+                    .split_once(',')
+                    .ok_or(anyhow!("--port expected sys,host found {}", p))?;
+                destroy_port(format!("{}_shi{}", name, i));
+                destroy_port(host.to_owned());
+            }
+        }
+    };
+    Ok(())
 }
 
 fn destroy_port(name: String) {
@@ -310,7 +379,6 @@ fn create_zones(
         create_host_zone(name, resources, &zfs)?;
     }
     resources.zfs.push(zfs);
-    copy_in_mgmt_script(name)?;
     Ok(())
 }
 
@@ -355,19 +423,28 @@ fn create_softnpu_zone(
     resources: &mut Resources,
     zfs: &Zfs,
 ) -> anyhow::Result<()> {
-    let phys: Vec<&str> =
+    let mut phys: Vec<&str> =
         resources.ports.iter().map(|p| p.end_b.as_str()).collect();
+
+    for p in &resources.user_supplied_ports {
+        phys.push(p.as_str());
+    }
 
     let dir = runtime_dir(name);
     let fs = FsMount::new(&dir, "/softnpu");
 
-    resources.zones.push(Zone::new(
+    let z = Zone::new(
         &format!("{}_{}", name, SOFTNPU_ZONE_NAME_SUFFIX),
         ZONE_BRAND,
         zfs,
         &phys,
         &[fs],
-    )?);
+    )?;
+    sleep(Duration::from_secs(3));
+    copy_in_mgmt_script(name)?;
+    z.wait_for_network()?;
+    z.zexec("/softnpu/npu start")?;
+    resources.zones.push(z);
     Ok(())
 }
 
@@ -412,7 +489,11 @@ const SOFTNPU_SCRIPT: &str = "#!/bin/bash
 
 case $1 in
     start) 
-        /softnpu/softnpu --uds-path /softnpu /softnpu/softnpu.toml &
+        /softnpu/softnpu \
+            --uds-path /softnpu \
+            /softnpu/softnpu.toml \
+            &> /var/log/softnpu.log \
+            &
         ;;
     stop)
         pkill -9 softnpu
