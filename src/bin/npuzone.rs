@@ -60,6 +60,10 @@ struct ZoneInfo {
     /// Also create the host zone and plumb in ports.
     #[clap(long)]
     with_host: bool,
+
+    /// Use the omicron zone type instead of sparse.
+    #[clap(long)]
+    omicron_zone: bool,
 }
 
 #[derive(Default)]
@@ -78,7 +82,8 @@ enum PortSpec {
 
 const SOFTNPU_ZONE_NAME_SUFFIX: &str = "softnpu";
 const HOST_ZONE_NAME_SUFFIX: &str = "host";
-const ZONE_BRAND: &str = "sparse";
+const SPARSE_BRAND: &str = "sparse";
+const OMICRON_BRAND: &str = "omicron1";
 const PFEXEC: &str = "/bin/pfexec";
 
 #[tokio::main]
@@ -86,10 +91,15 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.subcmd {
         SubCommand::Create(z) => {
+            let brand = if z.omicron_zone {
+                OMICRON_BRAND
+            } else {
+                SPARSE_BRAND
+            };
             let mut resources = Resources::default();
             fetch_required_artifacts(&z.name).await?;
             create_ports(&z.name, get_port_spec(&z)?, &mut resources)?;
-            create_zones(&z.name, z.with_host, &mut resources)?;
+            create_zones(&z.name, z.with_host, &mut resources, brand)?;
             // Exit without calling cleanup destructors. We want the resources
             // to stay! If we exit due to a question mark, things will be
             // cleaned up.
@@ -370,13 +380,14 @@ fn create_zones(
     name: &str,
     with_host: bool,
     resources: &mut Resources,
+    brand: &str,
 ) -> anyhow::Result<()> {
     let zfs = Zfs::new(name)?;
     println!("softnpu zone setup");
-    create_softnpu_zone(name, resources, &zfs)?;
+    create_softnpu_zone(name, resources, &zfs, brand)?;
     if with_host {
         println!("host zone setup");
-        create_host_zone(name, resources, &zfs)?;
+        create_host_zone(name, resources, &zfs, brand)?;
     }
     resources.zfs.push(zfs);
     Ok(())
@@ -422,6 +433,7 @@ fn create_softnpu_zone(
     name: &str,
     resources: &mut Resources,
     zfs: &Zfs,
+    brand: &str,
 ) -> anyhow::Result<()> {
     let mut phys: Vec<&str> =
         resources.ports.iter().map(|p| p.end_b.as_str()).collect();
@@ -435,7 +447,7 @@ fn create_softnpu_zone(
 
     let z = Zone::new(
         &format!("{}_{}", name, SOFTNPU_ZONE_NAME_SUFFIX),
-        ZONE_BRAND,
+        brand,
         zfs,
         &phys,
         &[fs],
@@ -452,6 +464,7 @@ fn create_host_zone(
     name: &str,
     resources: &mut Resources,
     zfs: &Zfs,
+    brand: &str,
 ) -> anyhow::Result<()> {
     // host ports are only the first half
     let n = resources.ports.len() / 2;
@@ -465,7 +478,7 @@ fn create_host_zone(
 
     resources.zones.push(Zone::new(
         &format!("{}_{}", name, HOST_ZONE_NAME_SUFFIX),
-        ZONE_BRAND,
+        brand,
         zfs,
         &phys,
         &[fs],
