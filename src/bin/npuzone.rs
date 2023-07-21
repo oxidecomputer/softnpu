@@ -163,7 +163,7 @@ async fn fetch_softnpu_url(shasum: bool) -> anyhow::Result<String> {
 
 async fn fetch_sidecar_lite_url(shasum: bool) -> anyhow::Result<String> {
     // hardcode for now until repo is open
-    let rev = "8f8e75371d7569ccb2d4112da7b69648050ba9a8";
+    let rev = "47c7e8e70253ed441ae25db20b2e32ee9c38e3e3";
     let base = "https://buildomat.eng.oxide.computer";
     let path = "public/file/oxidecomputer/sidecar-lite/release";
     let file = if shasum {
@@ -176,7 +176,7 @@ async fn fetch_sidecar_lite_url(shasum: bool) -> anyhow::Result<String> {
 
 async fn fetch_scadm_url(shasum: bool) -> anyhow::Result<String> {
     // hardcode for now until repo is open
-    let rev = "8f8e75371d7569ccb2d4112da7b69648050ba9a8";
+    let rev = "47c7e8e70253ed441ae25db20b2e32ee9c38e3e3";
     let base = "https://buildomat.eng.oxide.computer";
     let path = "public/file/oxidecomputer/sidecar-lite/release";
     let file = if shasum { "scadm.sha256.txt" } else { "scadm" };
