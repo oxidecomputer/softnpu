@@ -64,6 +64,15 @@ struct ZoneInfo {
     /// Use the omicron zone type instead of sparse.
     #[clap(long)]
     omicron_zone: bool,
+
+    /// The softnpu branch to use
+    #[clap(long, default_value = "main")]
+    softnpu_branch: String,
+
+    // hardcode for now until repo is open
+    /// The sidecar-lite branch to use
+    #[clap(long, default_value = "47c7e8e70253ed441ae25db20b2e32ee9c38e3e3")]
+    sidecar_lite_commit: String,
 }
 
 #[derive(Default)]
@@ -97,7 +106,12 @@ async fn main() -> anyhow::Result<()> {
                 SPARSE_BRAND
             };
             let mut resources = Resources::default();
-            fetch_required_artifacts(&z.name).await?;
+            fetch_required_artifacts(
+                &z.name,
+                &z.softnpu_branch,
+                &z.sidecar_lite_commit,
+            )
+            .await?;
             create_ports(&z.name, get_port_spec(&z)?, &mut resources)?;
             create_zones(&z.name, z.with_host, &mut resources, brand)?;
             // Exit without calling cleanup destructors. We want the resources
@@ -129,17 +143,22 @@ fn get_port_spec(z: &ZoneInfo) -> anyhow::Result<PortSpec> {
     }
 }
 
-async fn fetch_required_artifacts(name: &str) -> anyhow::Result<()> {
-    fetch_softnpu(name).await?;
-    fetch_sidecar_lite(name).await?;
-    fetch_scadm(name).await?;
+async fn fetch_required_artifacts(
+    name: &str,
+    softnpu_branch: &str,
+    sidecar_lite_commit: &str,
+) -> anyhow::Result<()> {
+    fetch_softnpu(name, softnpu_branch).await?;
+    fetch_sidecar_lite(name, sidecar_lite_commit).await?;
+    fetch_scadm(name, sidecar_lite_commit).await?;
     Ok(())
 }
 
-async fn fetch_head_softnpu_commit() -> anyhow::Result<String> {
+async fn fetch_head_softnpu_commit(branch: &str) -> anyhow::Result<String> {
     Ok(octocrab::instance()
         .repos("oxidecomputer", "softnpu")
         .list_commits()
+        .branch(branch)
         .page(1u32)
         .per_page(1)
         .send()
@@ -149,8 +168,11 @@ async fn fetch_head_softnpu_commit() -> anyhow::Result<String> {
         .clone())
 }
 
-async fn fetch_softnpu_url(shasum: bool) -> anyhow::Result<String> {
-    let rev = fetch_head_softnpu_commit().await?;
+async fn fetch_softnpu_url(
+    shasum: bool,
+    branch: &str,
+) -> anyhow::Result<String> {
+    let rev = fetch_head_softnpu_commit(branch).await?;
     let base = "https://buildomat.eng.oxide.computer";
     let path = "public/file/oxidecomputer/softnpu/image";
     let file = if shasum {
@@ -161,9 +183,10 @@ async fn fetch_softnpu_url(shasum: bool) -> anyhow::Result<String> {
     Ok(format!("{}/{}/{}/{}", base, path, rev, file))
 }
 
-async fn fetch_sidecar_lite_url(shasum: bool) -> anyhow::Result<String> {
-    // hardcode for now until repo is open
-    let rev = "47c7e8e70253ed441ae25db20b2e32ee9c38e3e3";
+async fn fetch_sidecar_lite_url(
+    shasum: bool,
+    rev: &str,
+) -> anyhow::Result<String> {
     let base = "https://buildomat.eng.oxide.computer";
     let path = "public/file/oxidecomputer/sidecar-lite/release";
     let file = if shasum {
@@ -174,9 +197,7 @@ async fn fetch_sidecar_lite_url(shasum: bool) -> anyhow::Result<String> {
     Ok(format!("{}/{}/{}/{}", base, path, rev, file))
 }
 
-async fn fetch_scadm_url(shasum: bool) -> anyhow::Result<String> {
-    // hardcode for now until repo is open
-    let rev = "47c7e8e70253ed441ae25db20b2e32ee9c38e3e3";
+async fn fetch_scadm_url(shasum: bool, rev: &str) -> anyhow::Result<String> {
     let base = "https://buildomat.eng.oxide.computer";
     let path = "public/file/oxidecomputer/sidecar-lite/release";
     let file = if shasum { "scadm.sha256.txt" } else { "scadm" };
@@ -187,30 +208,30 @@ fn runtime_dir(name: &str) -> String {
     format!("/var/run/softnpu/{}", name)
 }
 
-async fn fetch_sidecar_lite(name: &str) -> anyhow::Result<()> {
+async fn fetch_sidecar_lite(name: &str, rev: &str) -> anyhow::Result<()> {
     fetch_artifact(
-        &fetch_sidecar_lite_url(false).await?,
-        &fetch_sidecar_lite_url(true).await?,
+        &fetch_sidecar_lite_url(false, rev).await?,
+        &fetch_sidecar_lite_url(true, rev).await?,
         "asic_program.so",
         name,
     )
     .await
 }
 
-async fn fetch_scadm(name: &str) -> anyhow::Result<()> {
+async fn fetch_scadm(name: &str, rev: &str) -> anyhow::Result<()> {
     fetch_artifact(
-        &fetch_scadm_url(false).await?,
-        &fetch_scadm_url(true).await?,
+        &fetch_scadm_url(false, rev).await?,
+        &fetch_scadm_url(true, rev).await?,
         "scadm",
         name,
     )
     .await
 }
 
-async fn fetch_softnpu(name: &str) -> anyhow::Result<()> {
+async fn fetch_softnpu(name: &str, branch: &str) -> anyhow::Result<()> {
     fetch_artifact(
-        &fetch_softnpu_url(false).await?,
-        &fetch_softnpu_url(true).await?,
+        &fetch_softnpu_url(false, branch).await?,
+        &fetch_softnpu_url(true, branch).await?,
         "softnpu",
         name,
     )
