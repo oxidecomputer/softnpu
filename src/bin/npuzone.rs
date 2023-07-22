@@ -284,8 +284,8 @@ async fn fetch_artifact(
 
     let mut f = std::fs::OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
-        .append(true)
         .mode(0o755)
         .open(path)
         .unwrap();
