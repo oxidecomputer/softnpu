@@ -18,6 +18,16 @@
 #: series = "image"
 #: name = "softnpu.sha256.txt"
 #: from_output = "/work/release/softnpu.sha256.txt"
+#:
+#: [[publish]]
+#: series = "image"
+#: name = "npuzone"
+#: from_output = "/work/release/npuzone"
+#:
+#: [[publish]]
+#: series = "image"
+#: name = "npuzone.sha256.txt"
+#: from_output = "/work/release/npuzone.sha256.txt"
 
 set -o errexit
 set -o pipefail
@@ -38,6 +48,8 @@ for x in debug release
 do
     mkdir -p /work/$x
     cp target/$x/softnpu /work/$x/
+    cp target/$x/npuzone /work/$x/
     digest -a sha256 /work/$x/softnpu > /work/$x/softnpu.sha256.txt
+    digest -a sha256 /work/$x/npuzone > /work/$x/npuzone.sha256.txt
 done
 

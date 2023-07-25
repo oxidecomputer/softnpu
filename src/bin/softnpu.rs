@@ -5,8 +5,9 @@ use clap::Parser;
 use dlpi::{sys::dlpi_recvinfo_t, DlpiHandle};
 use libloading::os::unix::{Library, Symbol, RTLD_NOW};
 use p4rs::{packet_in, packet_out, Pipeline};
-use serde::Deserialize;
 use slog::{error, info, warn, Drain, Logger};
+use softnpu::cli::get_styles;
+use softnpu::config::{Config, Port};
 use softnpu::mgmt;
 use std::fs::read_to_string;
 use std::sync::Arc;
@@ -14,19 +15,6 @@ use tokio::net::UnixDatagram;
 use tokio::sync::Mutex;
 
 const L2_HEADROOM: usize = 20;
-
-#[derive(Debug, Deserialize)]
-pub struct Port {
-    pub sidecar: String,
-    pub scrimlet: String,
-    pub mtu: usize,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Config {
-    pub p4_program: String,
-    pub ports: Vec<Port>,
-}
 
 #[derive(Clone)]
 pub struct Switch {
@@ -397,26 +385,4 @@ async fn run(log: Logger) -> Result<()> {
         )
         .await;
     }
-}
-
-pub fn get_styles() -> clap::builder::Styles {
-    clap::builder::Styles::styled()
-        .header(anstyle::Style::new().bold().underline().fg_color(Some(
-            anstyle::Color::Rgb(anstyle::RgbColor(245, 207, 101)),
-        )))
-        .literal(anstyle::Style::new().bold().fg_color(Some(
-            anstyle::Color::Rgb(anstyle::RgbColor(72, 213, 151)),
-        )))
-        .invalid(anstyle::Style::new().bold().fg_color(Some(
-            anstyle::Color::Rgb(anstyle::RgbColor(72, 213, 151)),
-        )))
-        .valid(anstyle::Style::new().bold().fg_color(Some(
-            anstyle::Color::Rgb(anstyle::RgbColor(72, 213, 151)),
-        )))
-        .usage(anstyle::Style::new().bold().fg_color(Some(
-            anstyle::Color::Rgb(anstyle::RgbColor(245, 207, 101)),
-        )))
-        .error(anstyle::Style::new().bold().fg_color(Some(
-            anstyle::Color::Rgb(anstyle::RgbColor(232, 104, 134)),
-        )))
 }

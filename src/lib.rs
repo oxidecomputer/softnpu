@@ -1,5 +1,7 @@
 // Copyright 2022 Oxide Computer Company
 
+pub mod cli;
+pub mod config;
 pub mod mgmt;
 pub mod p9;
 

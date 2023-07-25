@@ -25,3 +25,9 @@ slog-term = "2.9.0"
 tokio = { version = "1.23.1", features = ["sync"] }
 toml = "0.5.9"
 anstyle = "1"
+zone = "0.2"
+ztest = { git = "https://github.com/oxidecomputer/falcon" }
+curl = "0.4"
+octocrab = "0.25"
+libnet = { git = "https://github.com/oxidecomputer/netadm-sys", branch = "main" }
+sha256 = "1"
