@@ -71,7 +71,7 @@ struct ZoneInfo {
 
     // hardcode for now until repo is open
     /// The sidecar-lite branch to use
-    #[clap(long, default_value = "47c7e8e70253ed441ae25db20b2e32ee9c38e3e3")]
+    #[clap(long, default_value = "0dfed379b81fcf4b7358792dc994f25c6a8ece5a")]
     sidecar_lite_commit: String,
 }
 
