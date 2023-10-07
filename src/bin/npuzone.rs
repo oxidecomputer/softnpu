@@ -71,8 +71,8 @@ struct ZoneInfo {
 
     // hardcode for now until repo is open
     /// The sidecar-lite branch to use
-    #[clap(long, default_value = "0dfed379b81fcf4b7358792dc994f25c6a8ece5a")]
-    sidecar_lite_commit: String,
+    #[clap(long, default_value = "main")]
+    sidecar_lite_branch: String,
 }
 
 #[derive(Default)]
@@ -109,7 +109,7 @@ async fn main() -> anyhow::Result<()> {
             fetch_required_artifacts(
                 &z.name,
                 &z.softnpu_branch,
-                &z.sidecar_lite_commit,
+                &z.sidecar_lite_branch,
             )
             .await?;
             create_ports(&z.name, get_port_spec(&z)?, &mut resources)?;
@@ -146,17 +146,33 @@ fn get_port_spec(z: &ZoneInfo) -> anyhow::Result<PortSpec> {
 async fn fetch_required_artifacts(
     name: &str,
     softnpu_branch: &str,
-    sidecar_lite_commit: &str,
+    sidecar_lite_branch: &str,
 ) -> anyhow::Result<()> {
     fetch_softnpu(name, softnpu_branch).await?;
-    fetch_sidecar_lite(name, sidecar_lite_commit).await?;
-    fetch_scadm(name, sidecar_lite_commit).await?;
+    fetch_sidecar_lite(name, sidecar_lite_branch).await?;
+    fetch_scadm(name, sidecar_lite_branch).await?;
     Ok(())
 }
 
 async fn fetch_head_softnpu_commit(branch: &str) -> anyhow::Result<String> {
     Ok(octocrab::instance()
         .repos("oxidecomputer", "softnpu")
+        .list_commits()
+        .branch(branch)
+        .page(1u32)
+        .per_page(1)
+        .send()
+        .await?
+        .take_items()[0]
+        .sha
+        .clone())
+}
+
+async fn fetch_head_sidecar_lite_commit(
+    branch: &str,
+) -> anyhow::Result<String> {
+    Ok(octocrab::instance()
+        .repos("oxidecomputer", "sidecar-lite")
         .list_commits()
         .branch(branch)
         .page(1u32)
@@ -185,8 +201,9 @@ async fn fetch_softnpu_url(
 
 async fn fetch_sidecar_lite_url(
     shasum: bool,
-    rev: &str,
+    branch: &str,
 ) -> anyhow::Result<String> {
+    let rev = fetch_head_sidecar_lite_commit(branch).await?;
     let base = "https://buildomat.eng.oxide.computer";
     let path = "public/file/oxidecomputer/sidecar-lite/release";
     let file = if shasum {
@@ -197,7 +214,8 @@ async fn fetch_sidecar_lite_url(
     Ok(format!("{}/{}/{}/{}", base, path, rev, file))
 }
 
-async fn fetch_scadm_url(shasum: bool, rev: &str) -> anyhow::Result<String> {
+async fn fetch_scadm_url(shasum: bool, branch: &str) -> anyhow::Result<String> {
+    let rev = fetch_head_sidecar_lite_commit(branch).await?;
     let base = "https://buildomat.eng.oxide.computer";
     let path = "public/file/oxidecomputer/sidecar-lite/release";
     let file = if shasum { "scadm.sha256.txt" } else { "scadm" };
@@ -208,10 +226,10 @@ fn runtime_dir(name: &str) -> String {
     format!("/var/run/softnpu/{}", name)
 }
 
-async fn fetch_sidecar_lite(name: &str, rev: &str) -> anyhow::Result<()> {
+async fn fetch_sidecar_lite(name: &str, branch: &str) -> anyhow::Result<()> {
     fetch_artifact(
-        &fetch_sidecar_lite_url(false, rev).await?,
-        &fetch_sidecar_lite_url(true, rev).await?,
+        &fetch_sidecar_lite_url(false, branch).await?,
+        &fetch_sidecar_lite_url(true, branch).await?,
         "asic_program.so",
         name,
     )
@@ -246,6 +264,8 @@ async fn fetch_artifact(
 ) -> anyhow::Result<()> {
     let mut easy = Easy::new();
     let name = name.to_owned();
+
+    println!("remote url: {shasum_url}");
 
     let mut remote_shasum = Vec::new();
     easy.url(shasum_url).unwrap();
