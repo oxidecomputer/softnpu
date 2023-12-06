@@ -1336,17 +1336,11 @@ checksum = "ceedf44fb00f2d1984b0bc98102627ce622e083e49a5bacdb3e514fa4238e267"
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=mod#415d76aad3b3fb7398ea12a1749fdfcd6a915cb3"
+source = "git+https://github.com/oxidecomputer/p4?branch=main#227fd15b965bdf5b47724df57eeaf6935587fdd9"
 dependencies = [
  "bitvec",
- "colored",
  "num",
  "serde",
- "serde_json",
- "slog",
- "slog-async",
- "slog-envlogger",
- "slog-term",
  "usdt",
 ]
 
