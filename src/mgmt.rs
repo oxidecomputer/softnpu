@@ -3,7 +3,7 @@
 use p4rs::{Pipeline, TableEntry};
 use serde::{Deserialize, Serialize};
 use slog::Logger;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::os::unix::io::AsRawFd;
@@ -19,6 +19,7 @@ pub enum ManagementRequest {
     RadixRequest,
     TableAdd(TableAdd),
     TableRemove(TableRemove),
+    TableCounters(TableCounters),
     DumpRequest,
 }
 
@@ -26,6 +27,7 @@ pub enum ManagementRequest {
 pub enum ManagementResponse {
     RadixResponse(u16),
     DumpResponse(BTreeMap<String, Vec<TableEntry>>),
+    TableCountersResponse(Option<HashMap<Vec<u8>, u128>>),
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -40,6 +42,11 @@ pub struct TableAdd {
 pub struct TableRemove {
     pub table: String,
     pub keyset_data: Vec<u8>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TableCounters {
+    pub table: String,
 }
 
 pub async fn handle_management_message(
@@ -64,6 +71,17 @@ pub async fn handle_management_message(
         }
         ManagementRequest::TableRemove(tm) => {
             pl.remove_table_entry(&tm.table, &tm.keyset_data);
+        }
+        ManagementRequest::TableCounters(tc) => {
+            let response = match pl.get_table_counters(&tc.table) {
+                None => ManagementResponse::TableCountersResponse(None),
+                Some(counters) => {
+                    let entries = counters.entries.lock().unwrap().clone();
+                    ManagementResponse::TableCountersResponse(Some(entries))
+                }
+            };
+            let buf = serde_json::to_vec(&response).unwrap();
+            uds.send_to(&buf, uds_dst).await.unwrap();
         }
         ManagementRequest::RadixRequest => {
             let response = ManagementResponse::RadixResponse(radix as u16);
