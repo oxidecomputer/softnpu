@@ -3,7 +3,7 @@
 use p4rs::{Pipeline, TableEntry};
 use serde::{Deserialize, Serialize};
 use slog::Logger;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::os::unix::io::AsRawFd;
@@ -27,7 +27,13 @@ pub enum ManagementRequest {
 pub enum ManagementResponse {
     RadixResponse(u16),
     DumpResponse(BTreeMap<String, Vec<TableEntry>>),
-    TableCountersResponse(Option<HashMap<Vec<u8>, u128>>),
+    TableCountersResponse(Option<Vec<TableCounter>>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TableCounter {
+    pub key: Vec<u8>,
+    pub value: u128,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -76,7 +82,14 @@ pub async fn handle_management_message(
             let response = match pl.get_table_counters(&tc.table) {
                 None => ManagementResponse::TableCountersResponse(None),
                 Some(counters) => {
-                    let entries = counters.entries.lock().unwrap().clone();
+                    let entries = counters
+                        .entries
+                        .lock()
+                        .unwrap()
+                        .clone()
+                        .into_iter()
+                        .map(|(k, v)| TableCounter { key: k, value: v })
+                        .collect();
                     ManagementResponse::TableCountersResponse(Some(entries))
                 }
             };
