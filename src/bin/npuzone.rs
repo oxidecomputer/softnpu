@@ -552,6 +552,7 @@ fn copy_in_mgmt_script(name: &str) -> anyhow::Result<()> {
     let path = format!("{}/npu", runtime_dir(name));
     let mut f = std::fs::OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
         .mode(0o755)
         .open(path)
