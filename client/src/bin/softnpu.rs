@@ -1,14 +1,15 @@
-// Copyright 2022 Oxide Computer Company
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use dlpi::{sys::dlpi_recvinfo_t, DlpiHandle};
 use libloading::os::unix::{Library, Symbol, RTLD_NOW};
-use p4rs::{packet_in, packet_out, Pipeline};
 use slog::{error, info, warn, Drain, Logger};
-use softnpu::cli::get_styles;
-use softnpu::config::{Config, Port};
-use softnpu::mgmt;
+use softnpu::p4rs::{packet_in, packet_out, Pipeline};
+use softnpu_client::cli::get_styles;
+use softnpu_client::config::{Config, Port};
 use std::fs::read_to_string;
 use std::sync::Arc;
 use tokio::net::UnixDatagram;
@@ -369,19 +370,18 @@ async fn run(log: Logger) -> Result<()> {
                 continue;
             }
         };
-        let msg: mgmt::ManagementRequest =
+        let msg: softnpu::ManagementRequest =
             match serde_json::from_slice(&buf[..n]) {
                 Ok(msg) => msg,
                 Err(_) => continue,
             };
 
-        mgmt::handle_management_message(
+        softnpu::handle_management_message(
             msg,
             pipe.clone(),
             uds.clone(),
             &client,
             config.ports.len(),
-            log.clone(),
         )
         .await;
     }
