@@ -2018,6 +2018,16 @@ dependencies = [
 
 [[package]]
 name = "softnpu"
+version = "0.2.0"
+dependencies = [
+ "p4rs",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "softnpu-client"
 version = "0.1.0"
 dependencies = [
  "anstyle",
@@ -2031,7 +2041,6 @@ dependencies = [
  "libloading",
  "libnet",
  "octocrab",
- "p4rs",
  "p9ds",
  "p9kp",
  "serde",
@@ -2041,6 +2050,7 @@ dependencies = [
  "slog-async",
  "slog-envlogger",
  "slog-term",
+ "softnpu",
  "tokio",
  "toml",
  "zone 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",

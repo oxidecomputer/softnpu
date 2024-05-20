@@ -1,33 +1,14 @@
-[package]
-name = "softnpu"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+members = [
+  "lib",
+  "client",
+]
 
-[dependencies]
-anyhow = "1.0.66"
-clap = { version = "4.2.5", features = ["derive", "unstable-styles"] }
-devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
-dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
-indicatif = "0.17.2"
-libc = "0.2.137"
-libloading = "0.7.3"
-p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "main" }
-p9ds = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
-p9kp = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
+[workspace.dependencies]
+softnpu = { path = "lib" }
+
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = "1.0.87"
-slog = "2.7.0"
-slog-async = "2.7.0"
-slog-envlogger = "2.2.0"
-slog-term = "2.9.0"
-tokio = { version = "1.23.1", features = ["sync"] }
-toml = "0.5.9"
-anstyle = "1"
-zone = "0.2"
-ztest = { git = "https://github.com/oxidecomputer/falcon" }
-curl = "0.4"
-octocrab = "0.25"
-libnet = { git = "https://github.com/oxidecomputer/netadm-sys", branch = "main" }
-sha256 = "1"
+tokio = { version = "1.23.1", features = ["sync", "net"] }

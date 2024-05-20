@@ -2,7 +2,8 @@ use anyhow::anyhow;
 use clap::Parser;
 use curl::easy::Easy;
 use libnet::{delete_link, LinkFlags, LinkHandle};
-use softnpu::cli::get_styles;
+use softnpu_client::cli::get_styles;
+use softnpu_client::config;
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 use std::thread::sleep;
@@ -350,7 +351,7 @@ fn create_ports(
     spec: PortSpec,
     resources: &mut Resources,
 ) -> anyhow::Result<()> {
-    let mut cfg = softnpu::config::Config {
+    let mut cfg = config::Config {
         p4_program: "/softnpu/asic_program.so".to_owned(),
         ..Default::default()
     };
@@ -371,7 +372,7 @@ fn create_ports(
                 resources
                     .ports
                     .push(SimnetLink::new(&external_ifx, &internal_ifx)?);
-                cfg.ports.push(softnpu::config::Port {
+                cfg.ports.push(config::Port {
                     sidecar,
                     scrimlet,
                     mtu: 9000,
@@ -392,7 +393,7 @@ fn create_ports(
                     .push(SimnetLink::new(&external_ifx, &internal_ifx)?);
                 resources.user_supplied_ports.push(sys.to_owned());
                 let sidecar = sys.to_owned();
-                cfg.ports.push(softnpu::config::Port {
+                cfg.ports.push(config::Port {
                     sidecar,
                     scrimlet,
                     mtu: 9000,

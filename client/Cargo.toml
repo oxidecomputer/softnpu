@@ -1,0 +1,44 @@
+[package]
+name = "softnpu-client"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+
+[[bin]]
+name = "softnpu"
+test = false
+doctest = false
+
+[[bin]]
+name = "npuzone"
+test = false
+doctest = false
+
+[dependencies]
+softnpu.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+anyhow = "1.0.66"
+clap = { version = "4.2.5", features = ["derive", "unstable-styles"] }
+devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
+dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
+indicatif = "0.17.2"
+libc = "0.2.137"
+libloading = "0.7.3"
+p9ds = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
+p9kp = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
+slog = "2.7.0"
+slog-async = "2.7.0"
+slog-envlogger = "2.2.0"
+slog-term = "2.9.0"
+toml = "0.5.9"
+anstyle = "1"
+zone = "0.2"
+ztest = { git = "https://github.com/oxidecomputer/falcon" }
+curl = "0.4"
+octocrab = "0.25"
+libnet = { git = "https://github.com/oxidecomputer/netadm-sys", branch = "main" }
+sha256 = "1"
