@@ -5,9 +5,9 @@
 use p4rs::{Pipeline, TableEntry};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::path::Path;
+use std::sync::Mutex;
 use tokio::net::UnixDatagram;
-use tokio::sync::Mutex;
 
 // Re-export p4rs so consumers can rely on matching types
 pub use p4rs;
@@ -43,15 +43,14 @@ pub struct TableRemove {
 
 pub async fn handle_management_message(
     msg: ManagementRequest,
-    pipeline: Arc<Mutex<Box<dyn Pipeline>>>,
-    uds: Arc<UnixDatagram>,
-    uds_dst: &str,
+    pipeline: &Mutex<Box<dyn Pipeline>>,
+    uds: &UnixDatagram,
+    uds_dst: &Path,
     radix: usize,
 ) {
-    let mut pl = pipeline.lock().await;
-
     match msg {
         ManagementRequest::TableAdd(tm) => {
+            let mut pl = pipeline.lock().unwrap();
             pl.add_table_entry(
                 &tm.table,
                 &tm.action,
@@ -61,6 +60,7 @@ pub async fn handle_management_message(
             );
         }
         ManagementRequest::TableRemove(tm) => {
+            let mut pl = pipeline.lock().unwrap();
             pl.remove_table_entry(&tm.table, &tm.keyset_data);
         }
         ManagementRequest::RadixRequest => {
@@ -69,15 +69,17 @@ pub async fn handle_management_message(
             uds.send_to(&buf, uds_dst).await.unwrap();
         }
         ManagementRequest::DumpRequest => {
-            let mut result = BTreeMap::new();
-
-            for id in pl.get_table_ids() {
-                let entries = match pl.get_table_entries(id) {
-                    Some(entries) => entries,
-                    None => Vec::new(),
-                };
-                result.insert(id.to_string(), entries);
-            }
+            let result = {
+                let pl = pipeline.lock().unwrap();
+                pl.get_table_ids()
+                    .into_iter()
+                    .map(|id| {
+                        let entries =
+                            pl.get_table_entries(id).unwrap_or_default();
+                        (id.to_string(), entries)
+                    })
+                    .collect::<BTreeMap<String, Vec<TableEntry>>>()
+            };
 
             let response = ManagementResponse::DumpResponse(result);
             let buf = serde_json::to_vec(&response).unwrap();

@@ -12,8 +12,8 @@ use softnpu_client::cli::get_styles;
 use softnpu_client::config::{Config, Port};
 use std::fs::read_to_string;
 use std::sync::Arc;
+use std::sync::Mutex;
 use tokio::net::UnixDatagram;
-use tokio::sync::Mutex;
 
 const L2_HEADROOM: usize = 20;
 
@@ -119,7 +119,7 @@ fn init_logger() -> Logger {
 async fn run_ingress_packet_handler(
     index: usize,
     switch: Switch,
-    pipeline: Arc<Mutex<Box<dyn Pipeline>>>,
+    pipeline: &Mutex<Box<dyn Pipeline>>,
     log: Logger,
 ) {
     info!(log, "ingress packet handler is running for port {}", index);
@@ -140,18 +140,15 @@ async fn run_ingress_packet_handler(
                 }
             };
 
-        // TODO pipeline should not need to be mutable for packet handling?
         let pkt = packet_in::new(&msg[..n]);
-        let mut pl = pipeline.lock().await;
-
-        handle_external_packet(index + 1, pkt, &switch, &mut pl, &log).await;
+        handle_external_packet(index + 1, pkt, &switch, pipeline, &log).await;
     }
 }
 
 async fn run_egress_packet_handler(
     index: usize,
     switch: Switch,
-    pipeline: Arc<Mutex<Box<dyn Pipeline>>>,
+    pipeline: &Mutex<Box<dyn Pipeline>>,
     log: Logger,
 ) {
     info!(log, "egress packet handler is running for port {}", index);
@@ -191,22 +188,23 @@ async fn run_egress_packet_handler(
         // 38 = 14 (eth) + 24 (sidecar)
         frame[38..m].clone_from_slice(&msg[14..n]);
 
-        // TODO pipeline should not need to be mutable for packet handling?
         let pkt = packet_in::new(&frame[..m]);
-        let mut pl = pipeline.lock().await;
-
-        handle_internal_packet(index + 1, pkt, &switch, &mut pl, &log).await
+        handle_internal_packet(index + 1, pkt, &switch, pipeline, &log);
     }
 }
 
-async fn handle_internal_packet<'a>(
+fn handle_internal_packet(
     index: usize,
-    mut pkt: packet_in<'a>,
+    mut pkt: packet_in<'_>,
     switch: &Switch,
-    pipeline: &mut Box<dyn Pipeline>,
+    pipeline: &Mutex<Box<dyn Pipeline>>,
     log: &Logger,
 ) {
-    for (mut out_pkt, port) in pipeline.process_packet(index as u16, &mut pkt) {
+    let output = {
+        let mut pl = pipeline.lock().unwrap();
+        pl.process_packet(index as u16, &mut pkt)
+    };
+    for (mut out_pkt, port) in output {
         if port == 0 {
             warn!(
                 log,
@@ -223,10 +221,14 @@ async fn handle_external_packet<'a>(
     index: usize,
     mut pkt: packet_in<'a>,
     switch: &Switch,
-    pipeline: &mut Box<dyn Pipeline>,
+    pipeline: &Mutex<Box<dyn Pipeline>>,
     log: &Logger,
 ) {
-    for (mut out_pkt, port) in pipeline.process_packet(index as u16, &mut pkt) {
+    let output = {
+        let mut pl = pipeline.lock().unwrap();
+        pl.process_packet(index as u16, &mut pkt)
+    };
+    for (mut out_pkt, port) in output {
         // packet is going to CPU port
         if port == 0 {
             handle_packet_to_cpu_port(&mut out_pkt, switch, log).await;
@@ -340,13 +342,13 @@ async fn run(log: Logger) -> Result<()> {
         let pipe_ = pipe.clone();
         let log_ = log.clone();
         tokio::spawn(async move {
-            run_ingress_packet_handler(index, sw_, pipe_, log_).await;
+            run_ingress_packet_handler(index, sw_, &pipe_, log_).await;
         });
         let sw_ = sw.clone();
         let pipe_ = pipe.clone();
         let log_ = log.clone();
         tokio::spawn(async move {
-            run_egress_packet_handler(index, sw_, pipe_, log_).await;
+            run_egress_packet_handler(index, sw_, &pipe_, log_).await;
         });
     }
 
@@ -356,10 +358,8 @@ async fn run(log: Logger) -> Result<()> {
 
     let _ = std::fs::remove_file(&server);
 
-    let uds = Arc::new(
-        UnixDatagram::bind(&server)
-            .map_err(|e| anyhow!("failed to open management socket: {}", e))?,
-    );
+    let uds = UnixDatagram::bind(&server)
+        .map_err(|e| anyhow!("failed to open management socket: {}", e))?;
 
     loop {
         let mut buf = vec![0u8; 10240];
@@ -378,9 +378,9 @@ async fn run(log: Logger) -> Result<()> {
 
         softnpu::handle_management_message(
             msg,
-            pipe.clone(),
-            uds.clone(),
-            &client,
+            &pipe,
+            &uds,
+            client.as_ref(),
             config.ports.len(),
         )
         .await;
