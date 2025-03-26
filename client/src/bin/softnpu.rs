@@ -217,9 +217,9 @@ fn handle_internal_packet(
     }
 }
 
-async fn handle_external_packet<'a>(
+async fn handle_external_packet(
     index: usize,
-    mut pkt: packet_in<'a>,
+    mut pkt: packet_in<'_>,
     switch: &Switch,
     pipeline: &Mutex<Box<dyn Pipeline>>,
     log: &Logger,
@@ -260,8 +260,8 @@ fn handle_packet_to_ext_port(
     }
 }
 
-async fn handle_packet_to_cpu_port<'a>(
-    pkt: &mut packet_out<'a>,
+async fn handle_packet_to_cpu_port(
+    pkt: &mut packet_out<'_>,
     switch: &Switch,
     log: &Logger,
 ) {
