@@ -462,7 +462,7 @@ fn destroy_zones(name: &str, with_host: bool) {
         .arg("zfs")
         .arg("destroy")
         .arg("-rf")
-        .arg(&format!("rpool/{}", name))
+        .arg(format!("rpool/{}", name))
         .output()
     {
         eprintln!("failed to delete zfs dataset rpool/{name}: {e}")
