@@ -1560,7 +1560,7 @@ checksum = "95f58698da06f0f57b1ea4a8f1b0ca5741ee17927729d2e87dcfcb682266d21d"
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=main#bb8dc6d3798ad6207a704ef4afe35c38fd3b8f7a"
+source = "git+https://github.com/oxidecomputer/p4?branch=main#b0bcb08c4cff909c465e10e110c60154e8d80114"
 dependencies = [
  "bitvec",
  "num",
