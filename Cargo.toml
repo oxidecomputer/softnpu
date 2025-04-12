@@ -17,7 +17,7 @@ devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
 indicatif = "0.17.11"
 libc = "0.2.171"
-libloading = "0.7.4"
+libloading = "0.8.6"
 p9ds = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
 p9kp = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
 slog = "2.7.0"
