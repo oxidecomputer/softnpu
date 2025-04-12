@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "main" }
+p4rs.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
