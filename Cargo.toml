@@ -15,7 +15,7 @@ anyhow = "1.0.98"
 clap = { version = "4.5.40", features = ["derive", "unstable-styles"] }
 devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
-indicatif = "0.17.11"
+indicatif = "0.17.12"
 libc = "0.2.174"
 libloading = "0.8.8"
 p9ds = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
