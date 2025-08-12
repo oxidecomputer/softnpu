@@ -11,7 +11,7 @@ softnpu = { path = "lib" }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
 tokio = { version = "1.47.1", features = ["sync", "net"] }
-anyhow = "1.0.98"
+anyhow = "1.0.99"
 clap = { version = "4.5.43", features = ["derive", "unstable-styles"] }
 devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
