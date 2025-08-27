@@ -12,7 +12,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 tokio = { version = "1.47.1", features = ["sync", "net"] }
 anyhow = "1.0.99"
-clap = { version = "4.5.45", features = ["derive", "unstable-styles"] }
+clap = { version = "4.5.46", features = ["derive", "unstable-styles"] }
 devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
 indicatif = "0.18.0"
