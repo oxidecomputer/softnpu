@@ -20,7 +20,7 @@ libc = "0.2.177"
 libloading = "0.8.9"
 p9ds = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
 p9kp = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
-slog = "2.7.0"
+slog = "2.8.1"
 slog-async = "2.8.0"
 slog-envlogger = "2.2.0"
 slog-term = "2.9.2"
