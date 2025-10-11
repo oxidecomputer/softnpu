@@ -2200,9 +2200,9 @@ dependencies = [
 
 [[package]]
 name = "slog"
-version = "2.8.1"
+version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30918a229cc14c055e9c9c7c3fa8b5fd1e9d406e7053044865f4517fcc48a388"
+checksum = "9b3b8565691b22d2bdfc066426ed48f837fc0c5f2c8cad8d9718f7f99d6995c1"
 dependencies = [
  "anyhow",
  "erased-serde",
