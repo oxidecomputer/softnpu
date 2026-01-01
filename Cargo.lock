@@ -1745,7 +1745,7 @@ dependencies = [
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=rust-1.92#93ae66d1172399f4fff49d00163dd9ef454fadc2"
+source = "git+https://github.com/oxidecomputer/p4?branch=main#33d646041f13062cc39c6f38725d8c95d4024a2f"
 dependencies = [
  "bitvec",
  "num",

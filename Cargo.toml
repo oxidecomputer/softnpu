@@ -31,5 +31,5 @@ ztest = { git = "https://github.com/oxidecomputer/falcon" }
 curl = "0.4.49"
 octocrab = "0.48"
 libnet = { git = "https://github.com/oxidecomputer/netadm-sys", branch = "main" }
-p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "rust-1.92" }
+p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "main" }
 sha256 = "1.6.0"
