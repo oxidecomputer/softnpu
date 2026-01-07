@@ -15,6 +15,11 @@ name = "npuzone"
 test = false
 doctest = false
 
+[[bin]]
+name = "npuvm"
+test = false
+doctest = false
+
 [dependencies]
 softnpu.workspace = true
 serde.workspace = true
@@ -42,3 +47,10 @@ curl.workspace = true
 octocrab.workspace = true
 libnet.workspace = true
 sha256.workspace = true
+camino.workspace = true
+thiserror.workspace = true
+flate2.workspace = true
+tar.workspace = true
+fs_extra.workspace = true
+tempfile.workspace = true
+smf.workspace = true
