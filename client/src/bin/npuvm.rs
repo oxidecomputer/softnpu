@@ -226,7 +226,10 @@ pub enum InstallDendriteError {
     CopyRootFilesystem(io::Error),
 
     #[error("failed to import SMF manifest {path}: {error}")]
-    ImportManifest { path: &'static str, error: io::Error },
+    ImportManifest {
+        path: &'static str,
+        error: io::Error,
+    },
 
     #[error("failed to remove dependency {dep} from {service}: {error}")]
     RemoveDependency {
@@ -330,7 +333,7 @@ pub async fn install_dendrite<'a>(
                 dep,
                 error: e,
             })?
-            .ok_or_else(|| E::RemoveDependency {
+            .ok_or(E::RemoveDependency {
                 service,
                 dep,
                 error: ScfError::NotFound,
@@ -632,7 +635,9 @@ fn download_file_with_retry(
     let pb = ProgressBar::new(0);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{msg} [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+            .template(
+                "{msg} [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+            )
             .expect("valid template")
             .progress_chars("#>-"),
     );
@@ -851,8 +856,12 @@ pub async fn fetch_sidecar_lite_artifacts<'a>(
 
     // Download libsidecar_lite.so
     let libsidecar_path = std::path::Path::new("libsidecar_lite.so");
-    download_file_with_retry(&libsidecar_url, libsidecar_path, "libsidecar_lite.so")
-        .map_err(E::DownloadLibsidecarLite)?;
+    download_file_with_retry(
+        &libsidecar_url,
+        libsidecar_path,
+        "libsidecar_lite.so",
+    )
+    .map_err(E::DownloadLibsidecarLite)?;
 
     Ok(())
 }
@@ -924,7 +933,9 @@ pub async fn fetch_dendrite_image<'a>(
     let pb = ProgressBar::new(0);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{msg} [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+            .template(
+                "{msg} [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+            )
             .expect("valid template")
             .progress_chars("#>-"),
     );
