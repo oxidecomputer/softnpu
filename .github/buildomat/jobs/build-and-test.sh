@@ -28,6 +28,16 @@
 #: series = "image"
 #: name = "npuzone.sha256.txt"
 #: from_output = "/work/release/npuzone.sha256.txt"
+#:
+#: [[publish]]
+#: series = "image"
+#: name = "npuvm"
+#: from_output = "/work/release/npuvm"
+#:
+#: [[publish]]
+#: series = "image"
+#: name = "npuvm.sha256.txt"
+#: from_output = "/work/release/npuvm.sha256.txt"
 
 set -o errexit
 set -o pipefail
@@ -49,7 +59,9 @@ do
     mkdir -p /work/$x
     cp target/$x/softnpu /work/$x/
     cp target/$x/npuzone /work/$x/
+    cp target/$x/npuvm /work/$x/
     digest -a sha256 /work/$x/softnpu > /work/$x/softnpu.sha256.txt
     digest -a sha256 /work/$x/npuzone > /work/$x/npuzone.sha256.txt
+    digest -a sha256 /work/$x/npuvm > /work/$x/npuvm.sha256.txt
 done
 
