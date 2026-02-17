@@ -11,12 +11,12 @@ softnpu = { path = "lib" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tokio = { version = "1.49.0", features = ["sync", "net"] }
-anyhow = "1.0.100"
-clap = { version = "4.5.54", features = ["derive", "unstable-styles"] }
+anyhow = "1.0.101"
+clap = { version = "4.5.59", features = ["derive", "unstable-styles"] }
 devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
-indicatif = "0.18.3"
-libc = "0.2.180"
+indicatif = "0.18.4"
+libc = "0.2.182"
 libloading = "0.8.9"
 p9ds = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
 p9kp = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
@@ -24,7 +24,7 @@ slog = "2.8.2"
 slog-async = "2.8.0"
 slog-envlogger = "2.2.0"
 slog-term = "2.9.2"
-toml = "0.9.11"
+toml = "0.9.12"
 anstyle = "1.0.13"
 zone = "0.3.1"
 ztest = { git = "https://github.com/oxidecomputer/falcon" }
@@ -34,9 +34,9 @@ libnet = { git = "https://github.com/oxidecomputer/netadm-sys", branch = "main" 
 p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "main" }
 sha256 = "1.6.0"
 camino = "1.2.2"
-thiserror = "2.0.17"
-flate2 = "1.0"
+thiserror = "2.0.18"
+flate2 = "1.1"
 tar = "0.4"
 fs_extra = "1.3"
-tempfile = "3.8"
+tempfile = "3.25"
 smf = { git = "https://github.com/illumos/smf-rs" }
