@@ -1469,7 +1469,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 [[package]]
 name = "libnet"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/netadm-sys?branch=main#99a7e26c6d8b43759ec7e09d10779766d577123f"
+source = "git+https://github.com/oxidecomputer/netadm-sys?branch=main#81c947bc709abe1c73d2291a9439a25f9d7be43c"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -1871,7 +1871,7 @@ dependencies = [
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=main#0c9e79ce77dfe151e48bb1b72ea55fedfbd31f94"
+source = "git+https://github.com/oxidecomputer/p4?branch=main#a1840304962af6a0d42d5c3ef064778af167d1c0"
 dependencies = [
  "bitvec",
  "num",
@@ -1882,7 +1882,7 @@ dependencies = [
 [[package]]
 name = "p9ds"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p9fs?branch=main#113f170aff6aa1d5add00c19b3a2f3241e16a763"
+source = "git+https://github.com/oxidecomputer/p9fs?branch=main#04fb133ac730f6f69612dcb20d1cb2195e4e89a6"
 dependencies = [
  "ispf",
  "num_enum 0.5.11",
@@ -1894,7 +1894,7 @@ dependencies = [
 [[package]]
 name = "p9kp"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p9fs?branch=main#113f170aff6aa1d5add00c19b3a2f3241e16a763"
+source = "git+https://github.com/oxidecomputer/p9fs?branch=main#04fb133ac730f6f69612dcb20d1cb2195e4e89a6"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -4163,7 +4163,7 @@ dependencies = [
 [[package]]
 name = "ztest"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/falcon#f5f8fd52ea72167b6a46eff34dc7b46b87d3b5f9"
+source = "git+https://github.com/oxidecomputer/falcon#d809e81eb151b7fcc87d6ca256517b908d3ad66a"
 dependencies = [
  "anyhow",
  "libnet",
