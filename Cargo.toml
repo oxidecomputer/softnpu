@@ -24,7 +24,7 @@ slog = "2.8.2"
 slog-async = "2.8.0"
 slog-envlogger = "2.2.0"
 slog-term = "2.9.2"
-toml = "1.0.2"
+toml = "1.0.3"
 anstyle = "1.0.13"
 zone = "0.3.1"
 ztest = { git = "https://github.com/oxidecomputer/falcon" }
