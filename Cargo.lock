@@ -1829,7 +1829,7 @@ dependencies = [
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=main#a1840304962af6a0d42d5c3ef064778af167d1c0"
+source = "git+https://github.com/oxidecomputer/p4?branch=zl%2Fmulticast#0e20707853ef5ec7ce04e3b069053698231f7dc2"
 dependencies = [
  "bitvec",
  "num",
@@ -2786,6 +2786,7 @@ dependencies = [
  "p4rs",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
  "tokio",
 ]
 
