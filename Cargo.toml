@@ -10,7 +10,7 @@ members = [
 softnpu = { path = "lib" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
-tokio = { version = "1.50.0", features = ["sync", "net"] }
+tokio = { version = "1.51.0", features = ["sync", "net"] }
 anyhow = "1.0.102"
 clap = { version = "4.6.0", features = ["derive", "unstable-styles"] }
 devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
