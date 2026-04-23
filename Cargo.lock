@@ -1829,7 +1829,7 @@ dependencies = [
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=main#a1840304962af6a0d42d5c3ef064778af167d1c0"
+source = "git+https://github.com/oxidecomputer/p4?branch=zl%2Fmulticast#0e8a28a2edce0a96dd0ac3a3df95af3d58cee839"
 dependencies = [
  "bitvec",
  "num",
