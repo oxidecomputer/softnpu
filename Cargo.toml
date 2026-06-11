@@ -28,7 +28,7 @@ toml = "1.1.2"
 anstyle = "1.0.14"
 zone = "0.3.1"
 ztest = { git = "https://github.com/oxidecomputer/falcon" }
-curl = "0.4.49"
+curl = "0.4.50"
 octocrab = "0.53"
 libnet = { git = "https://github.com/oxidecomputer/netadm-sys", branch = "main" }
 p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "main" }
