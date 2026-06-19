@@ -33,7 +33,7 @@ octocrab = "0.53"
 libnet = { git = "https://github.com/oxidecomputer/netadm-sys", branch = "main" }
 p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "main" }
 sha256 = "1.6.0"
-camino = "1.2.2"
+camino = "1.2.3"
 thiserror = "2.0.18"
 flate2 = "1.1"
 tar = "0.4"
