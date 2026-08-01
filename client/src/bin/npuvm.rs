@@ -7,11 +7,18 @@ use smf::{scf_type_t, Scf, ScfError};
 use softnpu_client::cli::get_styles;
 use std::fs;
 use std::io::{self, Write};
+use std::process::ExitStatus;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tar::Archive;
 use tempfile::TempDir;
+
+const MAX_ATTEMPTS: u32 = 5;
+const RETRY_DELAY: Duration = Duration::from_secs(1);
+const PKG_EXIT_OK: i32 = 0;
+const PKG_EXIT_NOP: i32 = 4;
+const PKG_EXIT_LOCK: i32 = 7;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None, styles = get_styles())]
@@ -248,6 +255,32 @@ pub enum InstallDendriteError {
     Enable(#[from] EnableDendriteServicesError),
 }
 
+fn install_tofino_driver(
+    mut run_pkg: impl FnMut() -> io::Result<ExitStatus>,
+    mut sleep: impl FnMut(Duration),
+) -> io::Result<()> {
+    let mut attempt = 1;
+    loop {
+        let status = run_pkg()?;
+
+        match status.code() {
+            Some(PKG_EXIT_OK) | Some(PKG_EXIT_NOP) => return Ok(()),
+            Some(PKG_EXIT_LOCK) if attempt < MAX_ATTEMPTS => {
+                // pkg operations may take several seconds to complete, so use
+                // a longer delay than the curl retry loops.
+                sleep(RETRY_DELAY * 5);
+                attempt += 1;
+            }
+            _ => {
+                return Err(io::Error::other(format!(
+                    "pkg install exited with status {}",
+                    status
+                )));
+            }
+        }
+    }
+}
+
 /// Install dendrite. This function fetches the softnpu image for the specified
 /// dendrite version. Dendrite images come in the form of a root filesystem.
 /// This function works by copying the contets of the package to the system
@@ -366,19 +399,17 @@ pub async fn install_dendrite<'a>(
         }
     }
 
-    // Install tofino driver
-    let status = std::process::Command::new("pkg")
-        .arg("install")
-        .arg("tofino")
-        .status()
-        .map_err(E::InstallTofinoDriver)?;
-    // Exit code 4 means the package is already installed
-    if !status.success() && status.code() != Some(4) {
-        return Err(E::InstallTofinoDriver(io::Error::other(format!(
-            "pkg install exited with status {}",
-            status
-        ))));
-    }
+    // Install tofino driver. Retry only when rc=EXIT_LOCKED.
+    install_tofino_driver(
+        || {
+            std::process::Command::new("pkg")
+                .arg("install")
+                .arg("tofino")
+                .status()
+        },
+        thread::sleep,
+    )
+    .map_err(E::InstallTofinoDriver)?;
 
     // Enable the dendrite services with configuration
     enable_dendrite_services(front_ports, rear_ports, pkt_source)?;
@@ -629,9 +660,6 @@ fn download_file_with_retry(
 ) -> Result<(), DownloadError> {
     use DownloadError as E;
 
-    const MAX_RETRIES: u32 = 5;
-    const RETRY_DELAY: Duration = Duration::from_secs(1);
-
     let pb = ProgressBar::new(0);
     pb.set_style(
         ProgressStyle::default_bar()
@@ -644,12 +672,12 @@ fn download_file_with_retry(
     pb.set_message(name.to_string());
 
     let mut last_error = None;
-    for attempt in 1..=MAX_RETRIES {
+    for attempt in 1..=MAX_ATTEMPTS {
         let file = match fs::File::create(dest_path) {
             Ok(f) => f,
             Err(e) => {
                 last_error = Some(E::CreateFile(e));
-                if attempt < MAX_RETRIES {
+                if attempt < MAX_ATTEMPTS {
                     thread::sleep(RETRY_DELAY);
                     continue;
                 }
@@ -663,7 +691,7 @@ fn download_file_with_retry(
         let mut easy = Easy::new();
         if let Err(e) = easy.url(url) {
             last_error = Some(E::Curl(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -671,7 +699,7 @@ fn download_file_with_retry(
         }
         if let Err(e) = easy.follow_location(true) {
             last_error = Some(E::Curl(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -679,7 +707,7 @@ fn download_file_with_retry(
         }
         if let Err(e) = easy.connect_timeout(Duration::from_secs(30)) {
             last_error = Some(E::Curl(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -687,7 +715,7 @@ fn download_file_with_retry(
         }
         if let Err(e) = easy.low_speed_limit(1000) {
             last_error = Some(E::Curl(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -695,7 +723,7 @@ fn download_file_with_retry(
         }
         if let Err(e) = easy.low_speed_time(Duration::from_secs(30)) {
             last_error = Some(E::Curl(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -703,7 +731,7 @@ fn download_file_with_retry(
         }
         if let Err(e) = easy.progress(true) {
             last_error = Some(E::Curl(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -751,13 +779,13 @@ fn download_file_with_retry(
                     }
                     Ok(code) => {
                         last_error = Some(E::HttpError(code));
-                        if attempt < MAX_RETRIES {
+                        if attempt < MAX_ATTEMPTS {
                             thread::sleep(RETRY_DELAY);
                         }
                     }
                     Err(e) => {
                         last_error = Some(E::Curl(e));
-                        if attempt < MAX_RETRIES {
+                        if attempt < MAX_ATTEMPTS {
                             thread::sleep(RETRY_DELAY);
                         }
                     }
@@ -765,7 +793,7 @@ fn download_file_with_retry(
             }
             Err(e) => {
                 last_error = Some(E::Curl(e));
-                if attempt < MAX_RETRIES {
+                if attempt < MAX_ATTEMPTS {
                     thread::sleep(RETRY_DELAY);
                 }
             }
@@ -927,9 +955,6 @@ pub async fn fetch_dendrite_image<'a>(
     let archive_path = temp_dir.path().join("dendrite-softnpu.tar.gz");
 
     // Download the archive using curl with retry logic and progress bar
-    const MAX_RETRIES: u32 = 5;
-    const RETRY_DELAY: Duration = Duration::from_secs(1);
-
     let pb = ProgressBar::new(0);
     pb.set_style(
         ProgressStyle::default_bar()
@@ -942,12 +967,12 @@ pub async fn fetch_dendrite_image<'a>(
     pb.set_message("dendrite-softnpu.tar.gz");
 
     let mut last_error = None;
-    for attempt in 1..=MAX_RETRIES {
+    for attempt in 1..=MAX_ATTEMPTS {
         let file = match fs::File::create(&archive_path) {
             Ok(f) => f,
             Err(e) => {
                 last_error = Some(E::WriteData(e));
-                if attempt < MAX_RETRIES {
+                if attempt < MAX_ATTEMPTS {
                     thread::sleep(RETRY_DELAY);
                     continue;
                 }
@@ -961,7 +986,7 @@ pub async fn fetch_dendrite_image<'a>(
         let mut easy = Easy::new();
         if let Err(e) = easy.url(&url) {
             last_error = Some(E::CurlInit(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -969,7 +994,7 @@ pub async fn fetch_dendrite_image<'a>(
         }
         if let Err(e) = easy.follow_location(true) {
             last_error = Some(E::CurlInit(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -978,7 +1003,7 @@ pub async fn fetch_dendrite_image<'a>(
         // Set connection timeout to 30 seconds
         if let Err(e) = easy.connect_timeout(Duration::from_secs(30)) {
             last_error = Some(E::CurlInit(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -987,7 +1012,7 @@ pub async fn fetch_dendrite_image<'a>(
         // Abort if slower than 1000 bytes/sec during 30 seconds
         if let Err(e) = easy.low_speed_limit(1000) {
             last_error = Some(E::CurlInit(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -995,7 +1020,7 @@ pub async fn fetch_dendrite_image<'a>(
         }
         if let Err(e) = easy.low_speed_time(Duration::from_secs(30)) {
             last_error = Some(E::CurlInit(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -1003,7 +1028,7 @@ pub async fn fetch_dendrite_image<'a>(
         }
         if let Err(e) = easy.progress(true) {
             last_error = Some(E::CurlInit(e));
-            if attempt < MAX_RETRIES {
+            if attempt < MAX_ATTEMPTS {
                 thread::sleep(RETRY_DELAY);
                 continue;
             }
@@ -1052,14 +1077,14 @@ pub async fn fetch_dendrite_image<'a>(
                     break;
                 } else {
                     last_error = Some(E::HttpError(response_code));
-                    if attempt < MAX_RETRIES {
+                    if attempt < MAX_ATTEMPTS {
                         thread::sleep(RETRY_DELAY);
                     }
                 }
             }
             Err(e) => {
                 last_error = Some(e);
-                if attempt < MAX_RETRIES {
+                if attempt < MAX_ATTEMPTS {
                     thread::sleep(RETRY_DELAY);
                 }
             }
@@ -1087,4 +1112,94 @@ pub async fn fetch_dendrite_image<'a>(
     std::mem::forget(temp_dir);
 
     Ok(utf8_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command as ProcessCommand;
+
+    fn exit_status(code: i32) -> ExitStatus {
+        ProcessCommand::new("sh")
+            .arg("-c")
+            .arg(format!("exit {code}"))
+            .status()
+            .expect("failed to run test shell")
+    }
+
+    #[test]
+    fn tofino_install_retries_locked_image_until_success() {
+        let mut statuses =
+            [PKG_EXIT_LOCK, PKG_EXIT_LOCK, PKG_EXIT_OK].into_iter();
+        let mut calls = 0;
+        let mut delays = Vec::new();
+
+        let result = install_tofino_driver(
+            || {
+                calls += 1;
+                Ok(exit_status(statuses.next().expect("unexpected pkg call")))
+            },
+            |delay| delays.push(delay),
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(calls, 3);
+        assert_eq!(delays, vec![RETRY_DELAY * 5; 2]);
+    }
+
+    #[test]
+    fn tofino_install_fails_when_lock_attempts_are_exhausted() {
+        let mut calls = 0;
+        let mut delays = Vec::new();
+
+        let result = install_tofino_driver(
+            || {
+                calls += 1;
+                Ok(exit_status(PKG_EXIT_LOCK))
+            },
+            |delay| delays.push(delay),
+        );
+
+        assert!(result.is_err());
+        assert_eq!(calls, MAX_ATTEMPTS);
+        assert_eq!(delays, vec![RETRY_DELAY * 5; 4]);
+    }
+
+    #[test]
+    fn tofino_install_accepts_success_and_noop() {
+        for code in [PKG_EXIT_OK, PKG_EXIT_NOP] {
+            let mut calls = 0;
+            let mut delays = Vec::new();
+
+            let result = install_tofino_driver(
+                || {
+                    calls += 1;
+                    Ok(exit_status(code))
+                },
+                |delay| delays.push(delay),
+            );
+
+            assert!(result.is_ok());
+            assert_eq!(calls, 1);
+            assert!(delays.is_empty());
+        }
+    }
+
+    #[test]
+    fn tofino_install_does_not_retry_other_failures() {
+        let mut calls = 0;
+        let mut delays = Vec::new();
+
+        let result = install_tofino_driver(
+            || {
+                calls += 1;
+                Ok(exit_status(1))
+            },
+            |delay| delays.push(delay),
+        );
+
+        assert!(result.is_err());
+        assert_eq!(calls, 1);
+        assert!(delays.is_empty());
+    }
 }

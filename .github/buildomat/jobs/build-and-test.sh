@@ -50,6 +50,9 @@ banner "check"
 cargo fmt -- --check
 cargo clippy -- --deny warnings
 
+banner "test"
+cargo test -p softnpu-client --bin npuvm
+
 banner "build"
 ptime -m cargo build
 ptime -m cargo build --release
@@ -64,4 +67,3 @@ do
     digest -a sha256 /work/$x/npuzone > /work/$x/npuzone.sha256.txt
     digest -a sha256 /work/$x/npuvm > /work/$x/npuvm.sha256.txt
 done
-
