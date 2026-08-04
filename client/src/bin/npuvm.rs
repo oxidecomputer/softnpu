@@ -255,13 +255,13 @@ pub enum InstallDendriteError {
     Enable(#[from] EnableDendriteServicesError),
 }
 
-fn install_tofino_driver(
-    mut run_pkg: impl FnMut() -> io::Result<ExitStatus>,
+fn run_pkg_cmd(
+    mut cmd: impl FnMut() -> io::Result<ExitStatus>,
     mut sleep: impl FnMut(Duration),
 ) -> io::Result<()> {
     let mut attempt = 1;
     loop {
-        let status = run_pkg()?;
+        let status = cmd()?;
 
         match status.code() {
             Some(PKG_EXIT_OK) | Some(PKG_EXIT_NOP) => return Ok(()),
@@ -400,7 +400,7 @@ pub async fn install_dendrite<'a>(
     }
 
     // Install tofino driver. Retry only when rc=EXIT_LOCKED.
-    install_tofino_driver(
+    run_pkg_cmd(
         || {
             std::process::Command::new("pkg")
                 .arg("install")
@@ -1128,13 +1128,13 @@ mod tests {
     }
 
     #[test]
-    fn tofino_install_retries_locked_image_until_success() {
+    fn run_pkg_cmd_retries_locked_image_until_success() {
         let mut statuses =
             [PKG_EXIT_LOCK, PKG_EXIT_LOCK, PKG_EXIT_OK].into_iter();
         let mut calls = 0;
         let mut delays = Vec::new();
 
-        let result = install_tofino_driver(
+        let result = run_pkg_cmd(
             || {
                 calls += 1;
                 Ok(exit_status(statuses.next().expect("unexpected pkg call")))
@@ -1148,11 +1148,11 @@ mod tests {
     }
 
     #[test]
-    fn tofino_install_fails_when_lock_attempts_are_exhausted() {
+    fn run_pkg_cmd_fails_when_lock_attempts_are_exhausted() {
         let mut calls = 0;
         let mut delays = Vec::new();
 
-        let result = install_tofino_driver(
+        let result = run_pkg_cmd(
             || {
                 calls += 1;
                 Ok(exit_status(PKG_EXIT_LOCK))
@@ -1166,12 +1166,12 @@ mod tests {
     }
 
     #[test]
-    fn tofino_install_accepts_success_and_noop() {
+    fn run_pkg_cmd_accepts_success_and_noop() {
         for code in [PKG_EXIT_OK, PKG_EXIT_NOP] {
             let mut calls = 0;
             let mut delays = Vec::new();
 
-            let result = install_tofino_driver(
+            let result = run_pkg_cmd(
                 || {
                     calls += 1;
                     Ok(exit_status(code))
@@ -1186,11 +1186,11 @@ mod tests {
     }
 
     #[test]
-    fn tofino_install_does_not_retry_other_failures() {
+    fn run_pkg_cmd_does_not_retry_other_failures() {
         let mut calls = 0;
         let mut delays = Vec::new();
 
-        let result = install_tofino_driver(
+        let result = run_pkg_cmd(
             || {
                 calls += 1;
                 Ok(exit_status(1))
