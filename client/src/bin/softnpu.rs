@@ -6,7 +6,7 @@ use anyhow::{anyhow, Result};
 use clap::Parser;
 use dlpi::{sys::dlpi_recvinfo_t, DlpiHandle};
 use libloading::os::unix::{Library, Symbol, RTLD_NOW};
-use slog::{error, info, warn, Drain, Logger};
+use slog::{debug, error, info, warn, Drain, Logger};
 use softnpu::p4rs::{packet_in, packet_out, Pipeline};
 use softnpu_client::cli::get_styles;
 use softnpu_client::config::{Config, Port};
@@ -85,12 +85,15 @@ struct Cli {
     uds_path: String,
 }
 
-fn load_program(path: &str) -> Result<(Library, Box<dyn Pipeline>)> {
+fn load_program(
+    path: &str,
+    radix: u16,
+) -> Result<(Library, Box<dyn Pipeline>)> {
     let lib = match unsafe { Library::open(Some(&path), RTLD_NOW) } {
         Ok(l) => l,
         Err(e) => return Err(anyhow!("failed to load p4 program: {}", e)),
     };
-    let func: Symbol<unsafe extern "C" fn() -> *mut dyn Pipeline> =
+    let func: Symbol<unsafe extern "C" fn(u16) -> *mut dyn Pipeline> =
         match unsafe { lib.get(b"_main_pipeline_create") } {
             Ok(f) => f,
             Err(e) => {
@@ -101,7 +104,7 @@ fn load_program(path: &str) -> Result<(Library, Box<dyn Pipeline>)> {
             }
         };
 
-    let boxpipe = unsafe { Box::from_raw(func()) };
+    let boxpipe = unsafe { Box::from_raw(func(radix)) };
     Ok((lib, boxpipe))
 }
 
@@ -206,10 +209,9 @@ fn handle_internal_packet(
     };
     for (mut out_pkt, port) in output {
         if port == 0 {
-            warn!(
+            debug!(
                 log,
-                "egress port=0 for internal packet on index {}, dropping",
-                index,
+                "egress port=0 for internal packet on index {index}, dropping"
             );
             continue;
         }
@@ -246,7 +248,18 @@ fn handle_packet_to_ext_port(
     port: u16,
     log: &Logger,
 ) {
-    let dh = switch.ports[port as usize - 1].sidecar;
+    let Some(sp) = (port as usize)
+        .checked_sub(1)
+        .and_then(|i| switch.ports.get(i))
+    else {
+        warn!(
+            log,
+            "egress port {port} out of range (1..={}), dropping",
+            switch.ports.len(),
+        );
+        return;
+    };
+    let dh = sp.sidecar;
 
     //TODO avoid copying the whole packet
     let mut out = pkt.header_data.clone();
@@ -334,7 +347,9 @@ async fn run(log: Logger) -> Result<()> {
     println!("{:#?}", config);
 
     let sw = Switch::new(&config.ports)?;
-    let (_lib, pipe) = load_program(&config.p4_program)?;
+    let radix = u16::try_from(config.ports.len() + 1)
+        .map_err(|_| anyhow!("too many ports: {}", config.ports.len()))?;
+    let (_lib, pipe) = load_program(&config.p4_program, radix)?;
     let pipe = Arc::new(Mutex::new(pipe));
 
     for (index, _) in sw.ports.iter().enumerate() {
