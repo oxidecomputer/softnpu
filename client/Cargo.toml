@@ -3,6 +3,10 @@ name = "softnpu-client"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["p9"]
+p9 = ["dep:devinfo", "dep:p9ds", "dep:p9kp"]
+
 [lib]
 
 [[bin]]
@@ -17,7 +21,6 @@ doctest = false
 
 [[bin]]
 name = "npuvm"
-test = false
 doctest = false
 
 [dependencies]
@@ -28,13 +31,13 @@ tokio.workspace = true
 
 anyhow.workspace = true
 clap.workspace = true
-devinfo.workspace = true
+devinfo = { workspace = true, optional = true }
 dlpi.workspace = true
 indicatif.workspace = true
 libc.workspace = true
 libloading.workspace = true
-p9ds.workspace = true
-p9kp.workspace = true
+p9ds = { workspace = true, optional = true }
+p9kp = { workspace = true, optional = true }
 slog.workspace = true
 slog-async.workspace = true
 slog-envlogger.workspace = true

@@ -4,6 +4,7 @@
 
 pub mod cli;
 pub mod config;
+#[cfg(feature = "p9")]
 pub mod p9;
 
 use softnpu::p4rs::TableEntry;

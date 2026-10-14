@@ -9,14 +9,14 @@ members = [
 [workspace.dependencies]
 softnpu = { path = "lib" }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-tokio = { version = "1.50.0", features = ["sync", "net"] }
+serde_json = "1.0.150"
+tokio = { version = "1.52.3", features = ["sync", "net"] }
 anyhow = "1.0.102"
-clap = { version = "4.6.0", features = ["derive", "unstable-styles"] }
+clap = { version = "4.6.1", features = ["derive", "unstable-styles"] }
 devinfo = { git = "https://github.com/oxidecomputer/devinfo-sys", branch = "main" }
 dlpi = { git = "https://github.com/oxidecomputer/dlpi-sys", branch = "main" }
 indicatif = "0.18.4"
-libc = "0.2.183"
+libc = "0.2.186"
 libloading = "0.8.9"
 p9ds = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
 p9kp = { git = "https://github.com/oxidecomputer/p9fs", branch = "main" }
@@ -24,16 +24,16 @@ slog = "2.8.2"
 slog-async = "2.8.0"
 slog-envlogger = "2.2.0"
 slog-term = "2.9.2"
-toml = "1.0.6"
+toml = "1.1.2"
 anstyle = "1.0.14"
 zone = "0.3.1"
 ztest = { git = "https://github.com/oxidecomputer/falcon" }
-curl = "0.4.49"
-octocrab = "0.49"
+curl = "0.4.50"
+octocrab = "0.53"
 libnet = { git = "https://github.com/oxidecomputer/netadm-sys", branch = "main" }
 p4rs = { git = "https://github.com/oxidecomputer/p4", branch = "zl/multicast" }
 sha256 = "1.6.0"
-camino = "1.2.2"
+camino = "1.2.3"
 thiserror = "2.0.18"
 flate2 = "1.1"
 tar = "0.4"
