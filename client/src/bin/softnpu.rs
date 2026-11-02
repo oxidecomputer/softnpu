@@ -119,6 +119,42 @@ fn init_logger() -> Logger {
     slog::Logger::root(drain, slog::o!())
 }
 
+/// Read the next packet from a DLPI link.
+///
+/// `dlpi::recv_async` registers the link's fd with tokio and deregisters it
+/// again for every packet, several system calls per packet. Under load that
+/// is slow enough for the stream head to fill up and drop packets. Read any
+/// packet that is already queued directly, and use `recv_async` only to wait
+/// when the queue is empty.
+async fn recv(
+    h: DlpiHandle,
+    src: &mut [u8],
+    msg: &mut [u8],
+    info: &mut dlpi_recvinfo_t,
+) -> std::io::Result<usize> {
+    // The direct read never waits, so give other tasks a turn now and then.
+    tokio::task::consume_budget().await;
+    match dlpi::recv(h, src, msg, 0, Some(&mut *info)) {
+        Ok((_, n)) => return Ok(n),
+        Err(e) if !is_timeout(&e) => return Err(e),
+        Err(_) => {} // queue is empty
+    }
+    loop {
+        match dlpi::recv_async(h, src, msg, Some(&mut *info)).await {
+            Ok((_, n)) => return Ok(n),
+            // Woken with nothing queued; wait again.
+            Err(e) if is_timeout(&e) => continue,
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+fn is_timeout(e: &std::io::Error) -> bool {
+    e.get_ref()
+        .and_then(|e| e.downcast_ref::<dlpi::ResultCode>())
+        .is_some_and(|rc| *rc == dlpi::ResultCode::ETimedout)
+}
+
 async fn run_ingress_packet_handler(
     index: usize,
     switch: Switch,
@@ -132,16 +168,13 @@ async fn run_ingress_packet_handler(
         let mut src = [0u8; dlpi::sys::DLPI_PHYSADDR_MAX];
         let mut msg = vec![0u8; mtu];
         let mut recvinfo = dlpi_recvinfo_t::default();
-        let n =
-            match dlpi::recv_async(dh, &mut src, &mut msg, Some(&mut recvinfo))
-                .await
-            {
-                Ok((_, n)) => n,
-                Err(e) => {
-                    error!(log, "rx error at index {}: {}", index, e);
-                    continue;
-                }
-            };
+        let n = match recv(dh, &mut src, &mut msg, &mut recvinfo).await {
+            Ok(n) => n,
+            Err(e) => {
+                error!(log, "rx error at index {}: {}", index, e);
+                continue;
+            }
+        };
 
         let pkt = packet_in::new(&msg[..n]);
         handle_external_packet(index + 1, pkt, &switch, pipeline, &log).await;
@@ -161,16 +194,13 @@ async fn run_egress_packet_handler(
         let mut src = [0u8; dlpi::sys::DLPI_PHYSADDR_MAX];
         let mut msg = vec![0u8; mtu];
         let mut recvinfo = dlpi_recvinfo_t::default();
-        let n =
-            match dlpi::recv_async(dh, &mut src, &mut msg, Some(&mut recvinfo))
-                .await
-            {
-                Ok((_, n)) => n,
-                Err(e) => {
-                    error!(log, "rx error at index {}: {}", index, e);
-                    continue;
-                }
-            };
+        let n = match recv(dh, &mut src, &mut msg, &mut recvinfo).await {
+            Ok(n) => n,
+            Err(e) => {
+                error!(log, "rx error at index {}: {}", index, e);
+                continue;
+            }
+        };
         let mut frame = vec![0u8; mtu];
 
         frame[..14].clone_from_slice(&msg[..14]);
