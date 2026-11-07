@@ -391,13 +391,16 @@ async fn run(log: Logger) -> Result<()> {
                 Err(_) => continue,
             };
 
-        softnpu::handle_management_message(
+        if let Err(e) = softnpu::handle_management_message(
             msg,
             &pipe,
             &uds,
             client.as_ref(),
             config.ports.len(),
         )
-        .await;
+        .await
+        {
+            error!(log, "management request failed"; "error" => %e);
+        }
     }
 }

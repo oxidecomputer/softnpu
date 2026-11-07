@@ -1834,7 +1834,7 @@ dependencies = [
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=main#c8b190f46901d4c1b8eef1ca35be243b18653471"
+source = "git+https://github.com/oxidecomputer/p4?branch=zl%2Fupsert-table-entries#b9baa79b4dc277501f860325da34403b89fb4ee9"
 dependencies = [
  "bitvec",
  "num",
@@ -2774,6 +2774,7 @@ dependencies = [
  "p4rs",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
 ]
 
