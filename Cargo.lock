@@ -1834,7 +1834,7 @@ dependencies = [
 [[package]]
 name = "p4rs"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/p4?branch=zl%2Fupsert-table-entries#b9baa79b4dc277501f860325da34403b89fb4ee9"
+source = "git+https://github.com/oxidecomputer/p4?branch=main#89b725ca3d534089675ef59f1606882218b6a3c8"
 dependencies = [
  "bitvec",
  "num",
