@@ -65,12 +65,57 @@ impl Switch {
 
     fn init_port(devname: &str) -> Result<DlpiHandle> {
         let p = dlpi::open(devname, dlpi::sys::DLPI_RAW)?;
+        raise_rx_hiwat(dlpi::fd(p)?)?;
         dlpi::bind(p, 0x86dd)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_MULTI)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_SAP)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_PHYS)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_RX_ONLY)?;
         Ok(p)
+    }
+}
+
+/// Raise the receive high-water mark of a DLPI stream to about 1 MiB.
+///
+/// A stream head holds at most 5120 bytes (STRHIGH) by default, about three
+/// full-size frames. Once it is full, dld drops received packets without
+/// counting them (`dld_str_rx_raw`), so bursts that arrive faster than we
+/// read lose packets, and TCP through softnpu slows to a crawl.
+///
+/// Userland can't set a stream head's high-water mark directly; only a
+/// module below it can, with M_SETOPTS. bufmod does this when given a chunk
+/// size (high-water mark = 4 * chunk + 512), and the stream head keeps the
+/// new value after bufmod is popped.
+fn raise_rx_hiwat(fd: libc::c_int) -> std::io::Result<()> {
+    #[repr(C)]
+    struct StrIoctl {
+        ic_cmd: libc::c_int,
+        ic_timout: libc::c_int,
+        ic_len: libc::c_int,
+        ic_dp: *mut libc::c_char,
+    }
+    // From <sys/bufmod.h>.
+    const SBIOCSCHUNK: libc::c_int = ((b'B' as libc::c_int) << 8) | 4;
+
+    let mut chunk: libc::c_uint = 256 * 1024;
+    let mut sio = StrIoctl {
+        ic_cmd: SBIOCSCHUNK,
+        ic_timout: -1,
+        ic_len: std::mem::size_of_val(&chunk) as libc::c_int,
+        ic_dp: &mut chunk as *mut libc::c_uint as *mut libc::c_char,
+    };
+    let check = |r: libc::c_int| {
+        if r < 0 {
+            Err(std::io::Error::last_os_error())
+        } else {
+            Ok(())
+        }
+    };
+    unsafe {
+        check(libc::ioctl(fd, libc::I_PUSH, c"bufmod".as_ptr()))?;
+        let set = check(libc::ioctl(fd, libc::I_STR, &mut sio));
+        check(libc::ioctl(fd, libc::I_POP, 0))?;
+        set
     }
 }
 
