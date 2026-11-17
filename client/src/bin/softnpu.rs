@@ -17,6 +17,9 @@ use tokio::net::UnixDatagram;
 
 const L2_HEADROOM: usize = 20;
 
+// Enough RX buffer space to hold ~100 jumbo frames.
+const RX_BUFFER_SIZE: u32 = 0x120000;
+
 #[derive(Clone)]
 pub struct Switch {
     pub ports: Vec<SwitchPort>,
@@ -65,6 +68,7 @@ impl Switch {
 
     fn init_port(devname: &str) -> Result<DlpiHandle> {
         let p = dlpi::open(devname, dlpi::sys::DLPI_RAW)?;
+        set_rx_buffer_size(p, RX_BUFFER_SIZE)?;
         dlpi::bind(p, 0x86dd)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_MULTI)?;
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_SAP)?;
@@ -72,6 +76,83 @@ impl Switch {
         dlpi::promisc_on(p, dlpi::sys::DL_PROMISC_RX_ONLY)?;
         Ok(p)
     }
+}
+
+#[repr(C)]
+struct StrIoctl {
+    ic_cmd: i32,
+    ic_timout: i32,
+    ic_len: i32,
+    ic_dp: *mut libc::c_char,
+}
+
+fn strioc<T>(fd: i32, cmd: i32, arg: &mut T) -> std::io::Result<()> {
+    #[cfg(target_os = "illumos")]
+    let rq = libc::I_STR;
+    #[cfg(not(target_os = "illumos"))]
+    let rq = 0xdeadbeef;
+
+    let mut si = StrIoctl {
+        ic_cmd: cmd,
+        ic_timout: -1,
+        ic_len: std::mem::size_of::<T>() as i32,
+        ic_dp: arg as *mut T as *mut libc::c_char,
+    };
+    if unsafe { libc::ioctl(fd, rq, &mut si as *mut StrIoctl) } < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+// STREAMS uses a high water mark as a backpressure mechanism. When we hit the
+// high water mark, messages are dropped until we drain to the low water mark.
+// This essentially makes the high water mark a receive buffer size.
+//
+// For DLPI the high water mark is not set and defaults to 5120 bytes, so we
+// hit it at the first jumbo frame and start dropping packets whenever softnpu
+// falls even slightly behind.
+//
+// The only way to influence this from outside the kernel is to push a
+// passthrough bufmod STREAMS module, so that's what we do here. This mirrors
+// the approach taken in propolis (oxidecomputer/propolis#1204).
+fn set_rx_buffer_size(h: DlpiHandle, size: u32) -> std::io::Result<()> {
+    // <sys/bufmod.h>
+    const SBIOCSTIME: i32 = 0x4201; // ('B'<<8)|1
+    const SBIOCSCHUNK: i32 = 0x4204; // ('B'<<8)|4
+    const SBIOCSFLAGS: i32 = 0x4208; // ('B'<<8)|8
+    const SB_NO_HEADER: u32 = 0x02;
+    const SB_NO_PROTO_CVT: u32 = 0x04;
+    const SB_NO_DROPS: u32 = 0x10;
+
+    let fd = dlpi::fd(h)?;
+
+    // bufmod calculates the high water mark as 4*chunk + 512, do the inverse
+    // to get our target buffer size.
+    let mut chunk: u32 = size.saturating_sub(512) / 4;
+    // Put bufmod in passthrough mode.
+    let mut flags: u32 = SB_NO_HEADER | SB_NO_PROTO_CVT | SB_NO_DROPS;
+    // Disable chunking. This still keeps the water mark that was applied for
+    // the supplied chunk size. Yes, this relies on implicit behavior.
+    let mut zero = libc::timeval {
+        tv_sec: 0,
+        tv_usec: 0,
+    };
+
+    // Push the STREAMS module.
+    #[cfg(target_os = "illumos")]
+    let rq = libc::I_PUSH;
+    #[cfg(not(target_os = "illumos"))]
+    let rq = 0xdeadbeef;
+    if unsafe { libc::ioctl(fd, rq, c"bufmod".as_ptr()) } < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+
+    // Apply the flags/chunk/time values described above.
+    strioc(fd, SBIOCSFLAGS, &mut flags)?;
+    strioc(fd, SBIOCSCHUNK, &mut chunk)?;
+    strioc(fd, SBIOCSTIME, &mut zero)?;
+
+    Ok(())
 }
 
 #[derive(Parser, Debug)]
